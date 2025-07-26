@@ -1,0 +1,4 @@
+Flask==2.3.2
+docxtpl==0.16.7
+python-docx==0.8.11
+Werkzeug==2.3.8
