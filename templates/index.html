@@ -1,0 +1,72 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador de Sesiones de Aprendizaje</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <!-- Frame para Datos Generales -->
+        <div class="general-frame">
+            <div class="section-header">
+                <h2>Datos Generales</h2>
+            </div>
+            
+            <form id="generation-form" enctype="multipart/form-data">
+                <!-- Carga de Plantilla -->
+                <label for="template-file">Plantilla Word (.docx):</label>
+                <input type="file" id="template-file" name="template" accept=".docx" required>
+                
+                <!-- Carga de JSON de Sesión -->
+                <label for="session-json-file">JSON de Sesión (.json) o Pegar:</label>
+                <input type="file" id="session-json-file" name="session_json" accept=".json">
+                <button type="button" class="secondary-button" id="paste-session-btn">Pegar JSON Sesión</button>
+                
+                <!-- Carga de JSON de Clase -->
+                <label for="class-json-file">JSON de Clase (.json) o Pegar:</label>
+                <input type="file" id="class-json-file" name="class_json" accept=".json">
+                <button type="button" class="secondary-button" id="paste-class-btn">Pegar JSON Clase</button>
+                
+                <!-- Selector de Fecha -->
+                <label for="start-date">Fecha de Inicio:</label>
+                <input type="date" id="start-date" name="start_date" required>
+                
+                <!-- Botón Generar -->
+                <div class="button-group">
+                    <button type="submit" class="main-button">Generar Documento</button>
+                </div>
+            </form>
+        </div>
+        
+        <!-- Frame para Alumnos (Vista Previa) -->
+        <div class="alumnos-frame">
+            <div class="section-header">
+                <h2>Vista Previa de Alumnos</h2>
+            </div>
+            <div id="alumnos-preview">
+                <p>Cargue el JSON de clase para ver la vista previa de alumnos.</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal para Pegar JSON -->
+    <div id="json-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2 id="modal-title">Pegar JSON</h2>
+            <label for="json-textarea">Contenido JSON:</label>
+            <textarea id="json-textarea" placeholder="Pegue aquí el contenido JSON..."></textarea>
+            <div class="button-group">
+                <button type="button" class="secondary-button" id="verify-json-btn">Verificar</button>
+                <button type="button" class="main-button" id="save-json-btn">Guardar</button>
+            </div>
+            <div id="json-validation-message"></div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
