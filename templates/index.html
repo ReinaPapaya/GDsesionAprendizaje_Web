@@ -52,18 +52,44 @@
         </div>
     </div>
     
-    <!-- Modal para Pegar JSON -->
-    <div id="json-modal" class="modal">
+    <!-- Modal para Pegar JSON de Sesión -->
+    <div id="session-json-modal" class="modal">
         <div class="modal-content">
             <span class="close">&times;</span>
-            <h2 id="modal-title">Pegar JSON</h2>
-            <label for="json-textarea">Contenido JSON:</label>
-            <textarea id="json-textarea" placeholder="Pegue aquí el contenido JSON..."></textarea>
+            <h2>Pegar JSON de Sesión</h2>
+            
+            <label for="session-json-filename">Nombre del Archivo (sin extensión):</label>
+            <input type="text" id="session-json-filename" placeholder="sesion_[nombreproyecto]">
+            <small>El archivo se guardará como: sesion_[nombreproyecto].json</small>
+            
+            <label for="session-json-textarea">Contenido JSON:</label>
+            <textarea id="session-json-textarea" placeholder="Pegue aquí el contenido JSON de sesión..."></textarea>
+            
             <div class="button-group">
-                <button type="button" class="secondary-button" id="verify-json-btn">Verificar</button>
-                <button type="button" class="main-button" id="save-json-btn">Guardar</button>
+                <button type="button" class="secondary-button" id="verify-session-json-btn">Verificar</button>
+                <button type="button" class="secondary-button" id="save-session-json-btn">Guardar</button>
+                <button type="button" class="main-button" id="load-session-json-btn">Cargar</button>
             </div>
-            <div id="json-validation-message"></div>
+            <div id="session-json-validation-message"></div>
+        </div>
+    </div>
+
+    <!-- Modal para Pegar JSON de Clase -->
+    <div id="class-json-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Pegar JSON de Clase</h2>
+            
+            <label for="class-json-textarea">Contenido JSON:</label>
+            <textarea id="class-json-textarea" placeholder="Pegue aquí el contenido JSON de clase..."></textarea>
+            
+            <div class="button-group">
+                <!-- Botón Guardar deshabilitado por ahora -->
+                <!-- <button type="button" class="secondary-button" id="save-class-json-btn" disabled>Guardar</button> -->
+                <button type="button" class="secondary-button" id="verify-class-json-btn">Verificar</button>
+                <button type="button" class="main-button" id="load-class-json-btn">Cargar</button>
+            </div>
+            <div id="class-json-validation-message"></div>
         </div>
     </div>
 
