@@ -57,9 +57,10 @@ def validate_session_json(data):
     if not isinstance(data, dict):
         return False, "El JSON raíz debe ser un objeto."
     
-    # Campos obligatorios de primer nivel
+    # Campos obligatorios de primer nivel (CORREGIDO)
+    # Se elimina 'talleres' de la lista de campos requeridos de primer nivel
     required_fields = ['nombreproyecto', 'periodo', 'preplanificacion', 'propositosaprendizaje', 
-                       'enfoquestransversales', 'sesiones', 'talleres']
+                       'enfoquestransversales', 'sesiones']
     
     for field in required_fields:
         if field not in data:
@@ -90,25 +91,19 @@ def validate_session_json(data):
             return False, f"propositosaprendizaje[{i}] debe ser un objeto."
         # Puedes agregar validaciones más específicas para cada campo aquí si es necesario
     
-    # enfoquestransversales
-    enfoques = data.get('enfoquestransversales', [])
-    if not isinstance(enfoques, list):
-        return False, "enfoquestransversales debe ser una lista de objetos."
-    
-    if len(enfoques) == 0:
-        return False, "enfoquestransversales no puede estar vacío."
-    
-    for i, item in enumerate(enfoques):
-        if not isinstance(item, dict):
-            return False, f"enfoquestransversales[{i}] debe ser un objeto."
-        # Puedes agregar validaciones más específicas para cada campo aquí si es necesario
+    # enfoquestransversales (CORREGIDO)
+    # Según la plantilla, enfoquestransversales es un objeto, no una lista
+    enfoques = data.get('enfoquestransversales', {})
+    if not isinstance(enfoques, dict):
+        return False, "enfoquestransversales debe ser un objeto."
+    # Puedes agregar validaciones para 'enfoque' y 'valores' aquí si es necesario
     
     # sesiones (verificar que existan los días)
     sesiones = data.get('sesiones', {})
     if not isinstance(sesiones, dict):
         return False, "sesiones debe ser un objeto con días como claves."
     
-    dias_requeridos = ['dia_Lunes', 'dia_Martes', 'dia_Miercoles', 'dia_Jueves', 'dia_Viernes']
+    dias_requeridos = ['dia_lunes', 'dia_martes', 'dia_miercoles', 'dia_jueves', 'dia_viernes']
     for dia in dias_requeridos:
         if dia not in sesiones:
             return False, f"sesiones.{dia} no encontrado."
@@ -116,16 +111,8 @@ def validate_session_json(data):
             return False, f"sesiones.{dia} debe ser un objeto."
         # Puedes agregar validaciones más específicas para cada campo de sesión aquí si es necesario
     
-    # talleres
-    talleres = data.get('talleres', [])
-    if not isinstance(talleres, list):
-        return False, "talleres debe ser una lista de objetos."
-    
-    # No es obligatorio que haya talleres, pero si los hay, validar su estructura
-    for i, taller in enumerate(talleres):
-        if not isinstance(taller, dict):
-            return False, f"talleres[{i}] debe ser un objeto."
-        # Puedes agregar validaciones más específicas para cada campo de taller aquí si es necesario
+    # La sección 'talleres' ya no se valida aquí como campo raíz requerido
+    # porque no existe en la plantilla proporcionada
         
     return True, "JSON válido."
 
@@ -164,7 +151,7 @@ def generate_document():
         else:
             return jsonify({"error": "Datos de sesión no proporcionados"}), 400
             
-        # Validar estructura del JSON de sesión
+        # Validar estructura del JSON de sesión (CORREGIDO)
         is_valid, validation_message = validate_session_json(session_data)
         if not is_valid:
             return jsonify({"error": f"JSON de sesión inválido: {validation_message}"}), 400
