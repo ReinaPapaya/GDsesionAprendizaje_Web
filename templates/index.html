@@ -19,15 +19,18 @@
                 <!-- Carga de Plantilla -->
                 <label for="template-file">Plantilla Word (.docx):</label>
                 <input type="file" id="template-file" name="template" accept=".docx" required>
+                <div class="file-info" id="template-file-info"></div>
                 
                 <!-- Carga de JSON de Sesión -->
                 <label for="session-json-file">JSON de Sesión (.json) o Pegar:</label>
                 <input type="file" id="session-json-file" name="session_json" accept=".json">
+                <div class="file-info" id="session-json-file-info"></div>
                 <button type="button" class="secondary-button" id="paste-session-btn">Pegar JSON Sesión</button>
                 
                 <!-- Carga de JSON de Clase -->
                 <label for="class-json-file">JSON de Clase (.json) o Pegar:</label>
                 <input type="file" id="class-json-file" name="class_json" accept=".json">
+                <div class="file-info" id="class-json-file-info"></div>
                 <button type="button" class="secondary-button" id="paste-class-btn">Pegar JSON Clase</button>
                 
                 <!-- Selector de Fecha -->
@@ -41,13 +44,13 @@
             </form>
         </div>
         
-        <!-- Frame para Alumnos (Vista Previa) -->
+        <!-- Frame para Alumnos (simplificado) -->
         <div class="alumnos-frame">
             <div class="section-header">
-                <h2>Vista Previa de Alumnos</h2>
+                <h2>Estado</h2>
             </div>
-            <div id="alumnos-preview">
-                <p>Cargue el JSON de clase para ver la vista previa de alumnos.</p>
+            <div id="status-message">
+                <p>Seleccione los archivos y datos necesarios.</p>
             </div>
         </div>
     </div>
@@ -84,8 +87,6 @@
             <textarea id="class-json-textarea" placeholder="Pegue aquí el contenido JSON de clase..."></textarea>
             
             <div class="button-group">
-                <!-- Botón Guardar deshabilitado por ahora -->
-                <!-- <button type="button" class="secondary-button" id="save-class-json-btn" disabled>Guardar</button> -->
                 <button type="button" class="secondary-button" id="verify-class-json-btn">Verificar</button>
                 <button type="button" class="main-button" id="load-class-json-btn">Cargar</button>
             </div>
