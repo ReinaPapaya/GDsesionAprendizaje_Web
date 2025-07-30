@@ -1,4 +1,4 @@
-# app.py
+# app.py 
 import json
 import os
 from datetime import datetime, timedelta
@@ -63,7 +63,7 @@ def validate_session_json(data):
                        'enfoquestransversales', 'sesiones']
     
     for field in required_fields:
-        if field not in data:
+        if field not in 
             return False, f"Campo obligatorio '{field}' no encontrado."
     
     # Validaciones específicas para secciones
@@ -91,13 +91,23 @@ def validate_session_json(data):
             return False, f"propositosaprendizaje[{i}] debe ser un objeto."
         # Puedes agregar validaciones más específicas para cada campo aquí si es necesario
     
-    # enfoquestransversales (CORREGIDO)
-    # Según la plantilla, enfoquestransversales es un objeto, no una lista
-    enfoques = data.get('enfoquestransversales', {})
-    if not isinstance(enfoques, dict):
-        return False, "enfoquestransversales debe ser un objeto."
-    # Puedes agregar validaciones para 'enfoque' y 'valores' aquí si es necesario
-    
+    # enfoquestransversales (CORREGIDO PARA ACEPTAR LISTA)
+    # Según el JSON de ejemplo que estás usando, enfoquestransversales es una lista de objetos
+    enfoques = data.get('enfoquestransversales', [])
+    if not isinstance(enfoques, list):
+        return False, "enfoquestransversales debe ser una lista de objetos."
+
+    # Validar que cada elemento de la lista sea un diccionario (objeto JSON)
+    # Puedes hacer la lista opcionalmente vacía o requerir al menos un elemento
+    # Si se requiere al menos uno:
+    # if len(enfoques) == 0:
+    #     return False, "enfoquestransversales no puede estar vacío."
+        
+    for i, item in enumerate(enfoques):
+        if not isinstance(item, dict):
+            return False, f"enfoquestransversales[{i}] debe ser un objeto."
+        # Puedes agregar validaciones para 'enfoque' y 'valores' dentro de cada item aquí
+
     # sesiones (verificar que existan los días)
     sesiones = data.get('sesiones', {})
     if not isinstance(sesiones, dict):
