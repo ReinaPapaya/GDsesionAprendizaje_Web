@@ -22,8 +22,8 @@ const generationForm = document.getElementById('generation-form');
 // Event Listeners
 document.addEventListener('DOMContentLoaded', function() {
     // Configurar fecha mínima para el selector de fecha
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('start-date').setAttribute('min', today);
+    // const today = new Date().toISOString().split('T')[0];
+    // document.getElementById('start-date').setAttribute('min', today);
     
     // Botones para pegar JSON
     pasteSessionBtn.addEventListener('click', () => openJsonModal('session'));
