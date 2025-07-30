@@ -13,12 +13,18 @@ const classJsonTextarea = document.getElementById('class-json-textarea');
 const sessionJsonValidationMessage = document.getElementById('session-json-validation-message');
 const classJsonValidationMessage = document.getElementById('class-json-validation-message');
 
+// Elementos para mostrar nombres de archivos
+const templateFileInfo = document.getElementById('template-file-info');
+const sessionJsonFileInfo = document.getElementById('session-json-file-info');
+const classJsonFileInfo = document.getElementById('class-json-file-info');
+
 // Elementos de los formularios principales
 const pasteSessionBtn = document.getElementById('paste-session-btn');
 const pasteClassBtn = document.getElementById('paste-class-btn');
+const templateFile = document.getElementById('template-file');
 const sessionJsonFile = document.getElementById('session-json-file');
 const classJsonFile = document.getElementById('class-json-file');
-const alumnosPreview = document.getElementById('alumnos-preview');
+const statusMessage = document.getElementById('status-message');
 const generationForm = document.getElementById('generation-form');
 
 // Event Listeners
@@ -27,6 +33,21 @@ document.addEventListener('DOMContentLoaded', function() {
     pasteSessionBtn.addEventListener('click', openSessionJsonModal);
     pasteClassBtn.addEventListener('click', openClassJsonModal);
     
+    // Inputs de tipo file para mostrar nombres
+    templateFile.addEventListener('change', function() {
+        updateFileInfo(templateFileInfo, this.files[0]);
+    });
+    
+    sessionJsonFile.addEventListener('change', function() {
+        updateFileInfo(sessionJsonFileInfo, this.files[0]);
+        handleSessionJsonFile.call(this, { target: this });
+    });
+    
+    classJsonFile.addEventListener('change', function() {
+        updateFileInfo(classJsonFileInfo, this.files[0]);
+        handleClassJsonFile.call(this, { target: this });
+    });
+    
     // Botones del modal de Sesión
     if (document.querySelector('#session-json-modal .close')) {
         document.querySelector('#session-json-modal .close').addEventListener('click', closeSessionJsonModal);
@@ -34,6 +55,9 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('verify-session-json-btn').addEventListener('click', () => verifyJson('session'));
     document.getElementById('save-session-json-btn').addEventListener('click', saveSessionJson);
     document.getElementById('load-session-json-btn').addEventListener('click', loadSessionJson);
+    
+    // Actualizar nombre automáticamente al pegar JSON en el modal de sesión
+    sessionJsonTextarea.addEventListener('input', updateFilenameFromJson);
     
     // Botones del modal de Clase
     if (document.querySelector('#class-json-modal .close')) {
@@ -48,17 +72,20 @@ document.addEventListener('DOMContentLoaded', function() {
         if (event.target === classJsonModal) closeClassJsonModal();
     });
     
-    // Manejo de archivos JSON
-    sessionJsonFile.addEventListener('change', handleSessionJsonFile);
-    classJsonFile.addEventListener('change', handleClassJsonFile);
-    
-    // Vista previa de alumnos
-    sessionJsonFile.addEventListener('change', updateAlumnosPreview);
-    classJsonFile.addEventListener('change', updateAlumnosPreview);
-    
     // Envío del formulario
     generationForm.addEventListener('submit', generateDocument);
 });
+
+// Función para actualizar la información del archivo seleccionado
+function updateFileInfo(infoElement, file) {
+    if (file) {
+        infoElement.textContent = `Archivo seleccionado: ${file.name}`;
+        infoElement.style.display = 'block';
+    } else {
+        infoElement.textContent = '';
+        infoElement.style.display = 'none';
+    }
+}
 
 // Funciones para manejo de modales
 function openSessionJsonModal() {
@@ -67,6 +94,12 @@ function openSessionJsonModal() {
     sessionJsonValidationMessage.textContent = '';
     sessionJsonValidationMessage.className = '';
     sessionJsonModal.style.display = 'block';
+    
+    // Intentar actualizar el nombre del archivo desde sessionData si ya existe
+    if (sessionData && sessionData.nombreproyecto) {
+        const cleanName = cleanProjectName(sessionData.nombreproyecto);
+        sessionJsonFilename.value = cleanName;
+    }
 }
 
 function closeSessionJsonModal() {
@@ -84,6 +117,34 @@ function closeClassJsonModal() {
     classJsonModal.style.display = 'none';
 }
 
+// Función para limpiar el nombre del proyecto para usarlo en nombres de archivo
+function cleanProjectName(projectName) {
+    return projectName
+        .substring(0, 50) // Limitar longitud
+        .replace(/[^a-zA-Z0-9_\-áéíóúÁÉÍÓÚñÑ\s]/g, '') // Eliminar caracteres especiales
+        .replace(/\s+/g, '_') // Reemplazar espacios con guiones bajos
+        .replace(/[áéíóúÁÉÍÓÚ]/g, match => 
+            ({'á':'a', 'é':'e', 'í':'i', 'ó':'o', 'ú':'u', 'Á':'A', 'É':'E', 'Í':'I', 'Ó':'O', 'Ú':'U'}[match])
+        );
+}
+
+// Función para actualizar el nombre del archivo desde el JSON pegado
+function updateFilenameFromJson() {
+    const jsonText = sessionJsonTextarea.value.trim();
+    if (!jsonText) return;
+    
+    try {
+        const parsedData = JSON.parse(jsonText);
+        if (parsedData.nombreproyecto) {
+            const cleanName = cleanProjectName(parsedData.nombreproyecto);
+            sessionJsonFilename.value = cleanName;
+        }
+    } catch (e) {
+        // Si el JSON no es válido, no hacemos nada
+        // El usuario verá un error al verificar
+    }
+}
+
 // Función genérica para verificar JSON
 function verifyJson(type) {
     const textarea = type === 'session' ? sessionJsonTextarea : classJsonTextarea;
@@ -95,29 +156,38 @@ function verifyJson(type) {
         return;
     }
     
-    // Enviar al backend para validación
-    fetch('/validate_json', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            json_text: jsonText,
-            reference_structure: type // Podría enviarse una estructura de referencia real
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.valid) {
-            showValidationMessage(validationMessage, 'JSON válido.', 'valid');
-        } else {
-            showValidationMessage(validationMessage, `JSON inválido: ${data.error}`, 'invalid');
-        }
-    })
-    .catch(error => {
-        console.error('Error al validar JSON:', error);
-        showValidationMessage(validationMessage, 'Error al validar el JSON.', 'invalid');
-    });
+    try {
+        // Intentar parsear el JSON localmente primero para un feedback inmediato
+        JSON.parse(jsonText);
+        showValidationMessage(validationMessage, 'JSON válido (sintaxis).', 'valid');
+        
+        // Opcional: Enviar al backend para una validación más estricta contra la plantilla
+        // fetch('/validate_json', {
+        //     method: 'POST',
+        //     headers: {
+        //         'Content-Type': 'application/json'
+        //     },
+        //     body: JSON.stringify({
+        //         json_text: jsonText,
+        //         reference_structure: type
+        //     })
+        // })
+        // .then(response => response.json())
+        // .then(data => {
+        //     if (data.valid) {
+        //         showValidationMessage(validationMessage, 'JSON válido y estructura correcta.', 'valid');
+        //     } else {
+        //         showValidationMessage(validationMessage, `Error de estructura: ${data.error}`, 'invalid');
+        //     }
+        // })
+        // .catch(error => {
+        //     console.error('Error al validar JSON en backend:', error);
+        //     showValidationMessage(validationMessage, 'Error al validar la estructura en el servidor.', 'invalid');
+        // });
+        
+    } catch (e) {
+        showValidationMessage(validationMessage, `JSON inválido: ${e.message}`, 'invalid');
+    }
 }
 
 // Función para mostrar mensajes de validación
@@ -154,14 +224,7 @@ function saveSessionJson() {
         filename = `sesion_${filenameInput}.json`;
     } else if (projectName) {
         // Usar el nombre del proyecto del JSON
-        // Limpiar el nombre del proyecto para usarlo en el nombre del archivo
-        const cleanProjectName = projectName
-            .substring(0, 50) // Limitar longitud
-            .replace(/[^a-zA-Z0-9_\-áéíóúÁÉÍÓÚñÑ\s]/g, '') // Eliminar caracteres especiales
-            .replace(/\s+/g, '_') // Reemplazar espacios con guiones bajos
-            .replace(/[áéíóúÁÉÍÓÚ]/g, match => 
-                ({'á':'a', 'é':'e', 'í':'i', 'ó':'o', 'ú':'u', 'Á':'A', 'É':'E', 'Í':'I', 'Ó':'O', 'Ú':'U'}[match])
-            );
+        const cleanProjectName = cleanProjectName(projectName);
         filename = `sesion_${cleanProjectName}.json`;
     } else {
         // Advertir si no hay nombre de proyecto
@@ -203,8 +266,9 @@ function loadSessionJson() {
         sessionData = parsedData;
         // Limpiar el input file si se estaba usando
         sessionJsonFile.value = '';
+        updateFileInfo(sessionJsonFileInfo, null); // Limpiar la info del archivo
         closeSessionJsonModal();
-        updateAlumnosPreview();
+        updateStatusMessage('JSON de Sesión cargado correctamente.');
         alert('JSON de Sesión cargado correctamente.');
     } catch (e) {
         showValidationMessage(sessionJsonValidationMessage, `Error al parsear JSON: ${e.message}`, 'invalid');
@@ -225,8 +289,9 @@ function loadClassJson() {
         classData = parsedData;
         // Limpiar el input file si se estaba usando
         classJsonFile.value = '';
+        updateFileInfo(classJsonFileInfo, null); // Limpiar la info del archivo
         closeClassJsonModal();
-        updateAlumnosPreview();
+        updateStatusMessage('JSON de Clase cargado correctamente.');
         alert('JSON de Clase cargado correctamente.');
     } catch (e) {
         showValidationMessage(classJsonValidationMessage, `Error al parsear JSON: ${e.message}`, 'invalid');
@@ -241,11 +306,17 @@ function handleSessionJsonFile(event) {
         reader.onload = function(e) {
             try {
                 sessionData = JSON.parse(e.target.result);
-                updateAlumnosPreview();
+                updateStatusMessage('JSON de Sesión cargado desde archivo.');
+                // Actualizar el nombre del archivo en el modal si está abierto
+                if (sessionJsonModal.style.display === 'block' && sessionData.nombreproyecto) {
+                    const cleanName = cleanProjectName(sessionData.nombreproyecto);
+                    sessionJsonFilename.value = cleanName;
+                }
             } catch (error) {
                 console.error('Error al parsear JSON de sesión:', error);
                 alert('Error al leer el archivo JSON de sesión.');
                 sessionJsonFile.value = ''; // Limpiar el input
+                updateFileInfo(sessionJsonFileInfo, null); // Limpiar la info del archivo
             }
         };
         reader.readAsText(file);
@@ -259,67 +330,22 @@ function handleClassJsonFile(event) {
         reader.onload = function(e) {
             try {
                 classData = JSON.parse(e.target.result);
-                updateAlumnosPreview();
+                updateStatusMessage('JSON de Clase cargado desde archivo.');
             } catch (error) {
                 console.error('Error al parsear JSON de clase:', error);
                 alert('Error al leer el archivo JSON de clase.');
                 classJsonFile.value = ''; // Limpiar el input
+                updateFileInfo(classJsonFileInfo, null); // Limpiar la info del archivo
             }
         };
         reader.readAsText(file);
     }
 }
 
-// Función para actualizar la vista previa de alumnos
-function updateAlumnosPreview() {
-    // Si se cargó un JSON de clase, mostrar los alumnos
-    let dataToShow = null;
-    
-    if (classData && classData.alumnos) {
-        dataToShow = classData;
-    } else if (classJsonFile.files.length > 0) {
-        // Si hay un archivo seleccionado pero no se ha cargado aún, mostrar mensaje
-        alumnosPreview.innerHTML = '<p>Procesando archivo de clase...</p>';
-        return;
-    } else {
-        alumnosPreview.innerHTML = '<p>Cargue el JSON de clase para ver la vista previa de alumnos.</p>';
-        return;
-    }
-    
-    // Generar tabla de alumnos
-    if (dataToShow.alumnos && Array.isArray(dataToShow.alumnos)) {
-        let tableHTML = `
-            <table id="alumnos-table">
-                <thead>
-                    <tr>
-                        <th>Nombre</th>
-                        <th>Fecha Nac.</th>
-                        <th>Necesidades</th>
-                        <th>Notas</th>
-                    </tr>
-                </thead>
-                <tbody>
-        `;
-        
-        dataToShow.alumnos.forEach(alumno => {
-            tableHTML += `
-                <tr>
-                    <td>${alumno.nombre || 'N/A'}</td>
-                    <td>${alumno.fechaNacimiento || 'N/A'}</td>
-                    <td>${alumno.necesidades || 'Ninguna'}</td>
-                    <td>${alumno.notas || ''}</td>
-                </tr>
-            `;
-        });
-        
-        tableHTML += `
-                </tbody>
-            </table>
-        `;
-        
-        alumnosPreview.innerHTML = tableHTML;
-    } else {
-        alumnosPreview.innerHTML = '<p>No se encontraron alumnos en el JSON de clase.</p>';
+// Función para actualizar el mensaje de estado
+function updateStatusMessage(message) {
+    if (statusMessage) {
+        statusMessage.innerHTML = `<p>${message}</p>`;
     }
 }
 
@@ -339,7 +365,7 @@ function generateDocument(event) {
     }
     
     // Validaciones básicas
-    if (!formData.get('template').name && !document.getElementById('template-file').files.length) {
+    if (!formData.get('template').name && !templateFile.files.length) {
         alert('Por favor, seleccione una plantilla .docx.');
         return;
     }
@@ -348,6 +374,8 @@ function generateDocument(event) {
         alert('Por favor, seleccione una fecha de inicio.');
         return;
     }
+    
+    updateStatusMessage('Generando documento...');
     
     // Enviar solicitud al backend
     fetch('/generate', {
@@ -382,14 +410,16 @@ function generateDocument(event) {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = filename; // <- Aquí se usa el nombre del servidor o el extraído
+        a.download = filename;
         document.body.appendChild(a);
         a.click();
         a.remove();
         window.URL.revokeObjectURL(url);
+        updateStatusMessage('Documento generado y descargado.');
     })
     .catch(error => {
         console.error('Error:', error);
         alert(`Error al generar el documento: ${error.message}`);
+        updateStatusMessage(`Error: ${error.message}`);
     });
 }
