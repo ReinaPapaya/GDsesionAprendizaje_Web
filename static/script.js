@@ -7,7 +7,7 @@ let classData = null;
 // Elementos del DOM
 const sessionJsonModal = document.getElementById('session-json-modal');
 const classJsonModal = document.getElementById('class-json-modal');
-const sessionJsonFilename = document.getElementById('session-json-filename');
+const sessionJsonFilename = document.getElementById('session-json-filename'); // Campo para el nombre del archivo
 const sessionJsonTextarea = document.getElementById('session-json-textarea');
 const classJsonTextarea = document.getElementById('class-json-textarea');
 const sessionJsonValidationMessage = document.getElementById('session-json-validation-message');
@@ -90,7 +90,7 @@ function updateFileInfo(infoElement, file) {
 // Funciones para manejo de modales
 function openSessionJsonModal() {
     sessionJsonTextarea.value = '';
-    sessionJsonFilename.value = '';
+    sessionJsonFilename.value = ''; // Limpiar el campo de nombre del archivo
     sessionJsonValidationMessage.textContent = '';
     sessionJsonValidationMessage.className = '';
     sessionJsonModal.style.display = 'block';
@@ -98,7 +98,7 @@ function openSessionJsonModal() {
     // Intentar actualizar el nombre del archivo desde sessionData si ya existe
     if (sessionData && sessionData.nombreproyecto) {
         const cleanName = cleanProjectName(sessionData.nombreproyecto);
-        sessionJsonFilename.value = cleanName;
+        sessionJsonFilename.value = cleanName; // Asignar el nombre del proyecto al campo Nombre del Archivo
     }
 }
 
@@ -137,7 +137,7 @@ function updateFilenameFromJson() {
         const parsedData = JSON.parse(jsonText);
         if (parsedData.nombreproyecto) {
             const cleanName = cleanProjectName(parsedData.nombreproyecto);
-            sessionJsonFilename.value = cleanName;
+            sessionJsonFilename.value = cleanName; // Actualiza el campo Nombre del Archivo
         }
     } catch (e) {
         // Si el JSON no es válido, no hacemos nada
@@ -174,37 +174,39 @@ function showValidationMessage(element, message, type) {
 // Función para guardar JSON de Sesión localmente
 function saveSessionJson() {
     const jsonText = sessionJsonTextarea.value.trim();
-    let filenameInput = sessionJsonFilename.value.trim();
+    let filenameInput = sessionJsonFilename.value.trim(); // Usar el valor del campo de nombre
     
     if (!jsonText) {
         showValidationMessage(sessionJsonValidationMessage, 'Por favor, pegue el contenido JSON antes de guardar.', 'invalid');
         return;
     }
     
-    // Intentar parsear para obtener el nombre del proyecto
-    let projectName = '';
-    try {
-        const parsedData = JSON.parse(jsonText);
-        projectName = parsedData.nombreproyecto || '';
-    } catch (e) {
-        showValidationMessage(sessionJsonValidationMessage, `Error al parsear JSON: ${e.message}`, 'invalid');
-        return;
-    }
-    
     // Determinar el nombre del archivo
     let filename = 'sesion_proyecto.json'; // Valor por defecto
-    
+
     if (filenameInput) {
         // Usar el nombre proporcionado por el usuario (sin extensión)
         filename = `sesion_${filenameInput}.json`;
-    } else if (projectName) {
-        // Usar el nombre del proyecto del JSON
-        const cleanProjectName = cleanProjectName(projectName);
-        filename = `sesion_${cleanProjectName}.json`;
     } else {
-        // Advertir si no hay nombre de proyecto
-        if (!confirm('No se encontró un nombre de proyecto en el JSON. ¿Desea guardar el archivo como "sesion_proyecto.json"?')) {
-            return;
+        // Si no hay nombre en el campo, intentar obtenerlo del JSON
+        try {
+            const parsedData = JSON.parse(jsonText);
+            const projectName = parsedData.nombreproyecto || '';
+            if (projectName) {
+                const cleanProjectName = cleanProjectName(projectName);
+                filename = `sesion_${cleanProjectName}.json`;
+            } else {
+                // Advertir si no hay nombre de proyecto
+                if (!confirm('No se encontró un nombre de proyecto en el JSON ni en el campo de nombre. ¿Desea guardar el archivo como "sesion_proyecto.json"?')) {
+                    return;
+                }
+            }
+        } catch (e) {
+            // Si el JSON no es válido para parsear el nombre, usar el nombre por defecto
+            // y mostrar un mensaje de advertencia
+             if (!confirm('El JSON parece inválido para extraer el nombre del proyecto. ¿Desea guardar el archivo como "sesion_proyecto.json"?')) {
+                    return;
+             }
         }
     }
     
@@ -247,29 +249,6 @@ function loadSessionJson() {
         alert('JSON de Sesión cargado correctamente.');
     } catch (e) {
         showValidationMessage(sessionJsonValidationMessage, `Error al parsear JSON: ${e.message}`, 'invalid');
-    }
-}
-
-// Función para cargar JSON de Clase en la aplicación
-function loadClassJson() {
-    const jsonText = classJsonTextarea.value.trim();
-    
-    if (!jsonText) {
-        showValidationMessage(classJsonValidationMessage, 'Por favor, pegue el contenido JSON antes de cargar.', 'invalid');
-        return;
-    }
-    
-    try {
-        const parsedData = JSON.parse(jsonText);
-        classData = parsedData;
-        // Limpiar el input file si se estaba usando
-        classJsonFile.value = '';
-        updateFileInfo(classJsonFileInfo, null); // Limpiar la info del archivo
-        closeClassJsonModal();
-        updateStatusMessage('JSON de Clase cargado correctamente.');
-        alert('JSON de Clase cargado correctamente.');
-    } catch (e) {
-        showValidationMessage(classJsonValidationMessage, `Error al parsear JSON: ${e.message}`, 'invalid');
     }
 }
 
