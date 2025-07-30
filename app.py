@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from docxtpl import DocxTemplate
 from flask import Flask, request, jsonify, send_file, render_template
 import io
+import copy
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # Limitar tamaño de carga a 16MB
@@ -47,6 +48,87 @@ def format_period(start_date_str):
         print(f"Error formateando periodo: {e}")
         return "Periodo no disponible"
 
+# Función de validación de JSON de Sesión
+def validate_session_json(data):
+    """
+    Valida la estructura del JSON de sesión contra la plantilla.
+    Retorna una tupla (es_valido, mensaje_de_error).
+    """
+    if not isinstance(data, dict):
+        return False, "El JSON raíz debe ser un objeto."
+    
+    # Campos obligatorios de primer nivel
+    required_fields = ['nombreproyecto', 'periodo', 'preplanificacion', 'propositosaprendizaje', 
+                       'enfoquestransversales', 'sesiones', 'talleres']
+    
+    for field in required_fields:
+        if field not in data:
+            return False, f"Campo obligatorio '{field}' no encontrado."
+    
+    # Validaciones específicas para secciones
+    
+    # preplanificacion
+    preplanificacion = data.get('preplanificacion', {})
+    if not isinstance(preplanificacion, dict):
+        return False, "preplanificacion debe ser un objeto."
+    
+    preplanificacion_fields = ['quequierohacer', 'paraqueloquierohacer', 'comoloquierohacer']
+    for field in preplanificacion_fields:
+        if field not in preplanificacion or not isinstance(preplanificacion[field], str):
+            return False, f"preplanificacion.{field} debe ser una cadena de texto."
+    
+    # propositosaprendizaje
+    propositos = data.get('propositosaprendizaje', [])
+    if not isinstance(propositos, list):
+        return False, "propositosaprendizaje debe ser una lista de objetos."
+    
+    if len(propositos) == 0:
+        return False, "propositosaprendizaje no puede estar vacío."
+    
+    for i, item in enumerate(propositos):
+        if not isinstance(item, dict):
+            return False, f"propositosaprendizaje[{i}] debe ser un objeto."
+        # Puedes agregar validaciones más específicas para cada campo aquí si es necesario
+    
+    # enfoquestransversales
+    enfoques = data.get('enfoquestransversales', [])
+    if not isinstance(enfoques, list):
+        return False, "enfoquestransversales debe ser una lista de objetos."
+    
+    if len(enfoques) == 0:
+        return False, "enfoquestransversales no puede estar vacío."
+    
+    for i, item in enumerate(enfoques):
+        if not isinstance(item, dict):
+            return False, f"enfoquestransversales[{i}] debe ser un objeto."
+        # Puedes agregar validaciones más específicas para cada campo aquí si es necesario
+    
+    # sesiones (verificar que existan los días)
+    sesiones = data.get('sesiones', {})
+    if not isinstance(sesiones, dict):
+        return False, "sesiones debe ser un objeto con días como claves."
+    
+    dias_requeridos = ['dia_Lunes', 'dia_Martes', 'dia_Miercoles', 'dia_Jueves', 'dia_Viernes']
+    for dia in dias_requeridos:
+        if dia not in sesiones:
+            return False, f"sesiones.{dia} no encontrado."
+        if not isinstance(sesiones[dia], dict):
+            return False, f"sesiones.{dia} debe ser un objeto."
+        # Puedes agregar validaciones más específicas para cada campo de sesión aquí si es necesario
+    
+    # talleres
+    talleres = data.get('talleres', [])
+    if not isinstance(talleres, list):
+        return False, "talleres debe ser una lista de objetos."
+    
+    # No es obligatorio que haya talleres, pero si los hay, validar su estructura
+    for i, taller in enumerate(talleres):
+        if not isinstance(taller, dict):
+            return False, f"talleres[{i}] debe ser un objeto."
+        # Puedes agregar validaciones más específicas para cada campo de taller aquí si es necesario
+        
+    return True, "JSON válido."
+
 @app.route('/')
 def index():
     """Sirve la página principal del frontend."""
@@ -81,6 +163,11 @@ def generate_document():
             session_data = json.loads(session_json_text)
         else:
             return jsonify({"error": "Datos de sesión no proporcionados"}), 400
+            
+        # Validar estructura del JSON de sesión
+        is_valid, validation_message = validate_session_json(session_data)
+        if not is_valid:
+            return jsonify({"error": f"JSON de sesión inválido: {validation_message}"}), 400
             
         # Cargar datos de clase
         class_data = None
@@ -138,29 +225,7 @@ def generate_document():
         print(f"Error generando documento: {e}")
         return jsonify({"error": f"Error interno del servidor: {str(e)}"}), 500
 
-@app.route('/validate_json', methods=['POST'])
-def validate_json():
-    """Endpoint para validar la estructura del JSON."""
-    try:
-        json_text = request.json.get('json_text')
-        reference_structure = request.json.get('reference_structure')
-        
-        if not json_text or not reference_structure:
-            return jsonify({"valid": False, "error": "Datos incompletos para validación"}), 400
-            
-        data = json.loads(json_text)
-        
-        # Aquí podrías implementar una validación más completa
-        # basada en la estructura de sesion_plantilla.json
-        # Por ahora, solo verificamos que sea JSON válido
-        is_valid = isinstance(data, (dict, list))
-        
-        return jsonify({"valid": is_valid})
-        
-    except json.JSONDecodeError as e:
-        return jsonify({"valid": False, "error": f"JSON inválido: {str(e)}"}), 400
-    except Exception as e:
-        return jsonify({"valid": False, "error": f"Error de validación: {str(e)}"}), 500
+# Eliminamos la ruta /validate_json antigua ya que la validación se hace en /generate
 
 if __name__ == '__main__':
     app.run(debug=True)
