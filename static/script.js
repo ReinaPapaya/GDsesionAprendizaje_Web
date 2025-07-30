@@ -21,10 +21,6 @@ const generationForm = document.getElementById('generation-form');
 
 // Event Listeners
 document.addEventListener('DOMContentLoaded', function() {
-    // Configurar fecha mínima para el selector de fecha
-    // const today = new Date().toISOString().split('T')[0];
-    // document.getElementById('start-date').setAttribute('min', today);
-    
     // Botones para pegar JSON
     pasteSessionBtn.addEventListener('click', () => openJsonModal('session'));
     pasteClassBtn.addEventListener('click', () => openJsonModal('class'));
@@ -256,8 +252,20 @@ function generateDocument(event) {
     })
     .then(response => {
         if (response.ok) {
+            // Obtener el nombre sugerido por el servidor
+            const contentDisposition = response.headers.get('Content-Disposition');
+            let filename = 'sesion_generada.docx'; // Valor por defecto
+
+            if (contentDisposition) {
+                // Intentar extraer el nombre del encabezado
+                const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+                if (filenameMatch && filenameMatch[1]) {
+                    filename = filenameMatch[1].replace(/['"]/g, ''); // Eliminar comillas
+                }
+            }
+
             // Crear un blob del archivo y descargarlo
-            return response.blob();
+            return response.blob().then(blob => ({ blob, filename }));
         } else {
             // Manejar errores del servidor
             return response.json().then(err => {
@@ -265,12 +273,12 @@ function generateDocument(event) {
             });
         }
     })
-    .then(blob => {
-        // Crear enlace de descarga
+    .then(({ blob, filename }) => {
+        // Crear enlace de descarga usando el nombre del servidor
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'documento_generado.docx'; // Nombre por defecto
+        a.download = filename; // <- Aquí se usa el nombre del servidor o el extraído
         document.body.appendChild(a);
         a.click();
         a.remove();
