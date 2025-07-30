@@ -145,7 +145,7 @@ function updateFilenameFromJson() {
     }
 }
 
-// Función genérica para verificar JSON
+// Función genérica para verificar JSON (sintaxis básica local)
 function verifyJson(type) {
     const textarea = type === 'session' ? sessionJsonTextarea : classJsonTextarea;
     const validationMessage = type === 'session' ? sessionJsonValidationMessage : classJsonValidationMessage;
@@ -159,41 +159,16 @@ function verifyJson(type) {
     try {
         // Intentar parsear el JSON localmente primero para un feedback inmediato
         JSON.parse(jsonText);
-        showValidationMessage(validationMessage, 'JSON válido (sintaxis).', 'valid');
-        
-        // Opcional: Enviar al backend para una validación más estricta contra la plantilla
-        // fetch('/validate_json', {
-        //     method: 'POST',
-        //     headers: {
-        //         'Content-Type': 'application/json'
-        //     },
-        //     body: JSON.stringify({
-        //         json_text: jsonText,
-        //         reference_structure: type
-        //     })
-        // })
-        // .then(response => response.json())
-        // .then(data => {
-        //     if (data.valid) {
-        //         showValidationMessage(validationMessage, 'JSON válido y estructura correcta.', 'valid');
-        //     } else {
-        //         showValidationMessage(validationMessage, `Error de estructura: ${data.error}`, 'invalid');
-        //     }
-        // })
-        // .catch(error => {
-        //     console.error('Error al validar JSON en backend:', error);
-        //     showValidationMessage(validationMessage, 'Error al validar la estructura en el servidor.', 'invalid');
-        // });
-        
+        showValidationMessage(validationMessage, 'JSON válido (sintaxis). Puede cargarlo o guardarlo. La validación completa de estructura se realizará al generar el documento.', 'valid');
     } catch (e) {
-        showValidationMessage(validationMessage, `JSON inválido: ${e.message}`, 'invalid');
+        showValidationMessage(validationMessage, `JSON inválido (sintaxis): ${e.message}`, 'invalid');
     }
 }
 
 // Función para mostrar mensajes de validación
 function showValidationMessage(element, message, type) {
     element.textContent = message;
-    element.className = type;
+    element.className = type; // 'valid' o 'invalid' para aplicar estilos CSS
 }
 
 // Función para guardar JSON de Sesión localmente
