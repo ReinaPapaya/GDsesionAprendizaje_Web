@@ -63,7 +63,7 @@ def validate_session_json(data):
                        'enfoquestransversales', 'sesiones']
     
     for field in required_fields:
-        if field not in 
+        if field not in some_collection:
             return False, f"Campo obligatorio '{field}' no encontrado."
     
     # Validaciones específicas para secciones
