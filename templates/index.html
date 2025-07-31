@@ -1,99 +1,45 @@
-<!-- templates/index.html -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Generador de Sesiones de Aprendizaje</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="stylesheet" href="/static/css/styles.css">
 </head>
 <body>
     <div class="container">
-        <!-- Frame para Datos Generales -->
-        <div class="general-frame">
-            <div class="section-header">
-                <h2>Datos Generales</h2>
+        <h1>Generador de Sesiones de Aprendizaje</h1>
+        <form id="generateForm" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="template">Plantilla .docx:</label>
+                <input type="file" id="template" name="template" accept=".docx" required>
+                <div class="file-list" id="templateFiles"></div>
             </div>
-            
-            <form id="generation-form" enctype="multipart/form-data">
-                <!-- Carga de Plantilla -->
-                <label for="template-file">Plantilla Word (.docx):</label>
-                <input type="file" id="template-file" name="template" accept=".docx" required>
-                <div class="file-info" id="template-file-info"></div>
-                
-                <!-- Carga de JSON de Sesión -->
-                <label for="session-json-file">JSON de Sesión (.json) o Pegar:</label>
-                <input type="file" id="session-json-file" name="session_json" accept=".json">
-                <div class="file-info" id="session-json-file-info"></div>
-                <button type="button" class="secondary-button" id="paste-session-btn">Pegar JSON Sesión</button>
-                
-                <!-- Carga de JSON de Clase -->
-                <label for="class-json-file">JSON de Clase (.json) o Pegar:</label>
-                <input type="file" id="class-json-file" name="class_json" accept=".json">
-                <div class="file-info" id="class-json-file-info"></div>
-                <button type="button" class="secondary-button" id="paste-class-btn">Pegar JSON Clase</button>
-                
-                <!-- Selector de Fecha -->
-                <label for="start-date">Fecha de Inicio:</label>
-                <input type="date" id="start-date" name="start_date" required>
-                
-                <!-- Botón Generar -->
-                <div class="button-group">
-                    <button type="submit" class="main-button">Generar Documento</button>
-                </div>
-            </form>
-        </div>
-        
-        <!-- Frame para Alumnos (simplificado) -->
-        <div class="alumnos-frame">
-            <div class="section-header">
-                <h2>Estado</h2>
+            <div class="form-group">
+                <label for="session_json">JSON de Sesión:</label>
+                <input type="file" id="session_json" name="session_json" accept=".json">
+                <div class="file-list" id="sessionJsonFiles"></div>
+                <label for="session_json_text">O pegar JSON de Sesión:</label>
+                <textarea id="session_json_text" name="session_json_text" rows="5"></textarea>
             </div>
-            <div id="status-message">
-                <p>Seleccione los archivos y datos necesarios.</p>
+            <div class="form-group">
+                <label for="class_json">JSON de Clase:</label>
+                <input type="file" id="class_json" name="class_json" accept=".json">
+                <div class="file-list" id="classJsonFiles"></div>
+                <label for="class_json_text">O pegar JSON de Clase:</label>
+                <textarea id="class_json_text" name="class_json_text" rows="5"></textarea>
             </div>
+            <div class="form-group">
+                <label for="start_date">Fecha de Inicio:</label>
+                <input type="date" id="start_date" name="start_date" required>
+            </div>
+            <button type="submit">Generar Documento</button>
+        </form>
+        <div class="log-container">
+            <h2>Log de Procesos</h2>
+            <ul id="processLog"></ul>
         </div>
     </div>
-    
-    <!-- Modal para Pegar JSON de Sesión -->
-    <div id="session-json-modal" class="modal">
-        <div class="modal-content">
-            <span class="close">&times;</span>
-            <h2>Pegar JSON de Sesión</h2>
-            
-            <label for="session-json-filename">Nombre del Archivo (sin extensión):</label>
-            <input type="text" id="session-json-filename" placeholder="sesion_[nombreproyecto]">
-            <small>El archivo se guardará como: sesion_[nombreproyecto].json</small>
-            
-            <label for="session-json-textarea">Contenido JSON:</label>
-            <textarea id="session-json-textarea" placeholder="Pegue aquí el contenido JSON de sesión..."></textarea>
-            
-            <div class="button-group">
-                <button type="button" class="secondary-button" id="verify-session-json-btn">Verificar</button>
-                <button type="button" class="secondary-button" id="save-session-json-btn">Guardar</button>
-                <button type="button" class="main-button" id="load-session-json-btn">Cargar</button>
-            </div>
-            <div id="session-json-validation-message"></div>
-        </div>
-    </div>
-
-    <!-- Modal para Pegar JSON de Clase -->
-    <div id="class-json-modal" class="modal">
-        <div class="modal-content">
-            <span class="close">&times;</span>
-            <h2>Pegar JSON de Clase</h2>
-            
-            <label for="class-json-textarea">Contenido JSON:</label>
-            <textarea id="class-json-textarea" placeholder="Pegue aquí el contenido JSON de clase..."></textarea>
-            
-            <div class="button-group">
-                <button type="button" class="secondary-button" id="verify-class-json-btn">Verificar</button>
-                <button type="button" class="main-button" id="load-class-json-btn">Cargar</button>
-            </div>
-            <div id="class-json-validation-message"></div>
-        </div>
-    </div>
-
-    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <script src="/static/js/main.js"></script>
 </body>
 </html>
