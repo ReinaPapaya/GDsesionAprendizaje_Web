@@ -23,11 +23,10 @@
                 <textarea id="session_json_text" name="session_json_text" rows="5"></textarea>
             </div>
             <div class="form-group">
-                <label for="class_json">JSON de Clase:</label>
-                <input type="file" id="class_json" name="class_json" accept=".json">
-                <div class="file-list" id="classJsonFiles"></div>
-                <label for="class_json_text">O pegar JSON de Clase:</label>
-                <textarea id="class_json_text" name="class_json_text" rows="5"></textarea>
+                <label>JSON de Clase:</label>
+                <button type="button" onclick="openClassEditor()">Editar Clase</button>
+                <input type="hidden" id="class_json_text" name="class_json_text">
+                <div class="file-list" id="classJsonStatus"></div>
             </div>
             <div class="form-group">
                 <label for="start_date">Fecha de Inicio:</label>
@@ -38,6 +37,26 @@
         <div class="log-container">
             <h2>Log de Procesos</h2>
             <ul id="processLog"></ul>
+        </div>
+    </div>
+    <div id="classEditorModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeClassEditor()">&times;</span>
+            <h2>Editor de Alumnos</h2>
+            <table id="studentsTable">
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Fecha de Nacimiento (dd/mm/yyyy)</th>
+                        <th>Necesidades Especiales</th>
+                        <th>Notas</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="studentsList"></tbody>
+            </table>
+            <button type="button" onclick="addStudentRow()">Añadir Alumno</button>
+            <button type="button" onclick="saveClassJson()">Guardar Clase</button>
         </div>
     </div>
     <script src="/static/js/main.js"></script>
