@@ -1,4 +1,4 @@
-# app.py 
+# app.py
 import json
 import os
 from datetime import datetime, timedelta
@@ -81,13 +81,9 @@ def validate_session_json(data):
         if not isinstance(item, dict):
             return False, f"propositosaprendizaje[{i}] debe ser un objeto."
     
-    enfoques = data.get('enfoquestransversales', [])
-    if not isinstance(enfoques, list):
-        return False, "enfoquestransversales debe ser una lista de objetos."
-    
-    for i, item in enumerate(enfoques):
-        if not isinstance(item, dict):
-            return False, f"enfoquestransversales[{i}] debe ser un objeto."
+    enfoques = data.get('enfoquestransversales', {})
+    if not isinstance(enfoques, dict):
+        return False, "enfoquestransversales debe ser un objeto."
     
     sesiones = data.get('sesiones', {})
     if not isinstance(sesiones, dict):
