@@ -3,6 +3,7 @@
 // Variables globales
 let sessionData = null;
 let classData = null;
+let generationForm;
 
 // Elementos del DOM
 const sessionJsonModal = document.getElementById('session-json-modal');
@@ -29,6 +30,8 @@ const generationForm = document.getElementById('generation-form');
 
 // Event Listeners
 document.addEventListener('DOMContentLoaded', function() {
+    // Inicializar referencias globales
+    generationForm = document.getElementById('generation-form');
     // Botones para abrir modales
     pasteSessionBtn.addEventListener('click', openSessionJsonModal);
     pasteClassBtn.addEventListener('click', openClassJsonModal);
@@ -303,32 +306,76 @@ function updateStatusMessage(message) {
     }
 }
 
-// Función para generar el documento
+// Función para generar el documento (CORREGIDA)
 function generateDocument(event) {
+    console.log('generateDocument iniciado');
     event.preventDefault();
+    
+    // Verificar que el formulario existe
+    if (!generationForm) {
+        console.error('Formulario no encontrado');
+        alert('Error: Formulario no encontrado. Recargue la página.');
+        return;
+    }
     
     const formData = new FormData(generationForm);
     
     // Si tenemos datos JSON pegados, los añadimos al formData
     if (sessionData) {
+        console.log('Añadiendo datos de sesión desde variable');
         formData.append('session_json_text', JSON.stringify(sessionData));
     }
     
     if (classData) {
+        console.log('Añadiendo datos de clase desde variable');
         formData.append('class_json_text', JSON.stringify(classData));
     }
     
-    // Validaciones básicas
-    if (!formData.get('template').name && !templateFile.files.length) {
+    // Validaciones básicas CORREGIDAS
+    const templateFileInput = document.getElementById('template-file');
+    const startDateInput = document.getElementById('start-date');
+    const sessionFileInput = document.getElementById('session-json-file');
+    const classFileInput = document.getElementById('class-json-file');
+    
+    // Verificar plantilla
+    const hasTemplateFile = templateFileInput && templateFileInput.files && templateFileInput.files.length > 0;
+    console.log('Tiene archivo de plantilla:', hasTemplateFile);
+    
+    if (!hasTemplateFile) {
         alert('Por favor, seleccione una plantilla .docx.');
         return;
     }
     
-    if (!formData.get('start_date')) {
+    // Verificar fecha
+    const startDate = startDateInput ? startDateInput.value : '';
+    console.log('Fecha de inicio:', startDate);
+    
+    if (!startDate) {
         alert('Por favor, seleccione una fecha de inicio.');
         return;
     }
     
+    // Verificar datos de sesión
+    const hasSessionFile = sessionFileInput && sessionFileInput.files && sessionFileInput.files.length > 0;
+    const hasSessionData = sessionData || hasSessionFile;
+    console.log('Tiene datos de sesión:', hasSessionData, '(variable:', !!sessionData, ', archivo:', hasSessionFile, ')');
+    
+    if (!hasSessionData) {
+        alert('Por favor, cargue los datos de sesión (archivo JSON o pegue el contenido).');
+        return;
+    }
+    
+    // Verificar datos de clase
+    const hasClassFile = classFileInput && classFileInput.files && classFileInput.files.length > 0;
+    const hasClassData = classData || hasClassFile;
+    console.log('Tiene datos de clase:', hasClassData, '(variable:', !!classData, ', archivo:', hasClassFile, ')');
+    
+    if (!hasClassData) {
+        alert('Por favor, cargue los datos de clase (archivo JSON o pegue el contenido).');
+        return;
+    }
+    
+    console.log('Todas las validaciones pasaron, enviando solicitud...');
     updateStatusMessage('Generando documento...');
     
     // Enviar solicitud al backend
@@ -337,30 +384,35 @@ function generateDocument(event) {
         body: formData
     })
     .then(response => {
+        console.log('Respuesta recibida:', response.status, response.statusText);
+        
         if (response.ok) {
-            // Obtener el nombre sugerido por el servidor
             const contentDisposition = response.headers.get('Content-Disposition');
-            let filename = 'sesion_generada.docx'; // Valor por defecto
+            let filename = 'sesion_generada.docx';
 
             if (contentDisposition) {
-                // Intentar extraer el nombre del encabezado
                 const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
                 if (filenameMatch && filenameMatch[1]) {
-                    filename = filenameMatch[1].replace(/['"]/g, ''); // Eliminar comillas
+                    filename = filenameMatch[1].replace(/['"]/g, '');
                 }
             }
-
-            // Crear un blob del archivo y descargarlo
+            
+            console.log('Nombre de archivo:', filename);
             return response.blob().then(blob => ({ blob, filename }));
         } else {
-            // Manejar errores del servidor
-            return response.json().then(err => {
-                throw new Error(err.error || 'Error desconocido al generar el documento.');
+            return response.text().then(text => {
+                console.error('Error del servidor:', text);
+                try {
+                    const errorData = JSON.parse(text);
+                    throw new Error(errorData.error || 'Error desconocido al generar el documento.');
+                } catch (parseError) {
+                    throw new Error(`Error del servidor: ${response.status} ${response.statusText}. Respuesta: ${text}`);
+                }
             });
         }
     })
     .then(({ blob, filename }) => {
-        // Crear enlace de descarga usando el nombre del servidor
+        console.log('Creando enlace de descarga para:', filename);
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -369,10 +421,11 @@ function generateDocument(event) {
         a.click();
         a.remove();
         window.URL.revokeObjectURL(url);
-        updateStatusMessage('Documento generado y descargado.');
+        updateStatusMessage('Documento generado y descargado correctamente.');
+        console.log('Descarga completada');
     })
     .catch(error => {
-        console.error('Error:', error);
+        console.error('Error completo:', error);
         alert(`Error al generar el documento: ${error.message}`);
         updateStatusMessage(`Error: ${error.message}`);
     });
