@@ -3,7 +3,7 @@
 // Variables globales
 let sessionData = null;
 let classData = null;
-let generationForm; // Declaración única
+let generationForm;
 
 // Elementos del DOM
 const sessionJsonModal = document.getElementById('session-json-modal');
@@ -25,12 +25,15 @@ const statusMessage = document.getElementById('status-message');
 
 // Event Listeners
 document.addEventListener('DOMContentLoaded', function() {
-    // Inicializar referencias globales
-    generationForm = document.getElementById('uploadForm'); // Cambiado a 'uploadForm' para coincidir con index.html
+    console.log('DOMContentLoaded ejecutado, buscando formulario...');
+    generationForm = document.getElementById('uploadForm');
     if (!generationForm) {
         console.error('Formulario con id="uploadForm" no encontrado');
+        console.log('Elementos del DOM:', document.querySelectorAll('form')); // Depuración
+        alert('Error: Formulario no encontrado. Por favor, recargue la página.');
         return;
     }
+    console.log('Formulario encontrado:', generationForm);
 
     // Botones para abrir modales
     pasteSessionBtn.addEventListener('click', openSessionJsonModal);
