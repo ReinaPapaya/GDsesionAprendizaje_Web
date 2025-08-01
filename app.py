@@ -9,7 +9,7 @@ import io
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # Limitar tamaño de carga a 16MB
 
-# Funciones auxiliares (adaptadas de GDsesionAprendizaje.py)
+# Funciones auxiliares
 def calculate_age(birth_date_str):
     """Calcula la edad a partir de una fecha de nacimiento (dd/mm/yyyy) en meses."""
     try:
@@ -64,7 +64,6 @@ def validate_session_json(data):
         if field not in data:
             return False, f"Campo obligatorio '{field}' no encontrado."
     
-    # Validaciones específicas para secciones
     preplanificacion = data.get('preplanificacion', {})
     if not isinstance(preplanificacion, dict):
         return False, "preplanificacion debe ser un objeto."
@@ -133,9 +132,9 @@ def generate_document():
     """Endpoint para generar el documento .docx."""
     try:
         # Obtener archivos y datos del request
-        template_file = request.files.get('templateFile')
-        session_json_file = request.files.get('sesionFile')
-        class_json_file = request.files.get('classFile')
+        template_file = request.files.get('template')
+        session_json_file = request.files.get('session_json')
+        class_json_file = request.files.get('class_json')
         
         session_json_text = request.form.get('session_json_text')
         class_json_text = request.form.get('class_json_text')
