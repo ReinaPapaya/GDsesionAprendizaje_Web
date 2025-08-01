@@ -5,7 +5,6 @@ from datetime import datetime, timedelta
 from docxtpl import DocxTemplate
 from flask import Flask, request, jsonify, send_file, render_template
 import io
-import copy
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # Limitar tamaño de carga a 16MB
@@ -19,7 +18,8 @@ def calculate_age(birth_date_str):
         delta_days = (today - birth_date).days
         age_months = round(delta_days / 30.44)
         return f"{age_months} meses"
-    except ValueError:
+    except ValueError as e:
+        print(f"Error calculando edad: {e}")
         return "Edad desconocida"
 
 def find_next_friday(start_date):
@@ -57,8 +57,6 @@ def validate_session_json(data):
     if not isinstance(data, dict):
         return False, "El JSON raíz debe ser un objeto."
     
-    # Campos obligatorios de primer nivel (CORREGIDO)
-    # Se elimina 'talleres' de la lista de campos requeridos de primer nivel
     required_fields = ['nombreproyecto', 'periodo', 'preplanificacion', 'propositosaprendizaje', 
                        'enfoquestransversales', 'sesiones']
     
@@ -67,8 +65,6 @@ def validate_session_json(data):
             return False, f"Campo obligatorio '{field}' no encontrado."
     
     # Validaciones específicas para secciones
-    
-    # preplanificacion
     preplanificacion = data.get('preplanificacion', {})
     if not isinstance(preplanificacion, dict):
         return False, "preplanificacion debe ser un objeto."
@@ -78,52 +74,53 @@ def validate_session_json(data):
         if field not in preplanificacion or not isinstance(preplanificacion[field], str):
             return False, f"preplanificacion.{field} debe ser una cadena de texto."
     
-    # propositosaprendizaje
     propositos = data.get('propositosaprendizaje', [])
-    if not isinstance(propositos, list):
-        return False, "propositosaprendizaje debe ser una lista de objetos."
-    
-    if len(propositos) == 0:
-        return False, "propositosaprendizaje no puede estar vacío."
+    if not isinstance(propositos, list) or len(propositos) == 0:
+        return False, "propositosaprendizaje debe ser una lista no vacía de objetos."
     
     for i, item in enumerate(propositos):
         if not isinstance(item, dict):
             return False, f"propositosaprendizaje[{i}] debe ser un objeto."
-        # Puedes agregar validaciones más específicas para cada campo aquí si es necesario
     
-    # enfoquestransversales (CORREGIDO PARA ACEPTAR LISTA)
-    # Según el JSON de ejemplo que estás usando, enfoquestransversales es una lista de objetos
     enfoques = data.get('enfoquestransversales', [])
     if not isinstance(enfoques, list):
         return False, "enfoquestransversales debe ser una lista de objetos."
-
-    # Validar que cada elemento de la lista sea un diccionario (objeto JSON)
-    # Puedes hacer la lista opcionalmente vacía o requerir al menos un elemento
-    # Si se requiere al menos uno:
-    # if len(enfoques) == 0:
-    #     return False, "enfoquestransversales no puede estar vacío."
-        
+    
     for i, item in enumerate(enfoques):
         if not isinstance(item, dict):
             return False, f"enfoquestransversales[{i}] debe ser un objeto."
-        # Puedes agregar validaciones para 'enfoque' y 'valores' dentro de cada item aquí
-
-    # sesiones (verificar que existan los días)
+    
     sesiones = data.get('sesiones', {})
     if not isinstance(sesiones, dict):
         return False, "sesiones debe ser un objeto con días como claves."
     
     dias_requeridos = ['dia_lunes', 'dia_martes', 'dia_miercoles', 'dia_jueves', 'dia_viernes']
     for dia in dias_requeridos:
-        if dia not in sesiones:
-            return False, f"sesiones.{dia} no encontrado."
-        if not isinstance(sesiones[dia], dict):
+        if dia not in sesiones or not isinstance(sesiones[dia], dict):
             return False, f"sesiones.{dia} debe ser un objeto."
-        # Puedes agregar validaciones más específicas para cada campo de sesión aquí si es necesario
     
-    # La sección 'talleres' ya no se valida aquí como campo raíz requerido
-    # porque no existe en la plantilla proporcionada
-        
+    return True, "JSON válido."
+
+# Función de validación de JSON de Clase
+def validate_class_json(data):
+    """
+    Valida la estructura del JSON de clase.
+    Retorna una tupla (es_valido, mensaje_de_error).
+    """
+    if not isinstance(data, dict):
+        return False, "El JSON raíz debe ser un objeto."
+    
+    if 'alumnos' not in data or not isinstance(data['alumnos'], list):
+        return False, "alumnos debe ser una lista."
+    
+    for i, alumno in enumerate(data['alumnos']):
+        if not isinstance(alumno, dict):
+            return False, f"alumnos[{i}] debe ser un objeto."
+        if 'nombre' not in alumno or not isinstance(alumno['nombre'], str):
+            return False, f"alumnos[{i}].nombre debe ser una cadena de texto."
+        if 'fechaNacimiento' in alumno and not isinstance(alumno['fechaNacimiento'], str):
+            return False, f"alumnos[{i}].fechaNacimiento debe ser una cadena de texto."
+    
     return True, "JSON válido."
 
 @app.route('/')
@@ -136,44 +133,59 @@ def generate_document():
     """Endpoint para generar el documento .docx."""
     try:
         # Obtener archivos y datos del request
-        template_file = request.files.get('template')
-        session_json_file = request.files.get('session_json')
-        class_json_file = request.files.get('class_json')
+        template_file = request.files.get('templateFile')
+        session_json_file = request.files.get('sesionFile')
+        class_json_file = request.files.get('classFile')
         
-        # Opción alternativa: datos JSON pegados
         session_json_text = request.form.get('session_json_text')
         class_json_text = request.form.get('class_json_text')
-        
         start_date_str = request.form.get('start_date')
         
         if not start_date_str:
             return jsonify({"error": "Fecha de inicio no proporcionada"}), 400
-            
+        
         if not template_file:
             return jsonify({"error": "Plantilla .docx no proporcionada"}), 400
-            
+        
         # Cargar datos de sesión
         session_data = None
         if session_json_file:
-            session_data = json.load(session_json_file.stream)
+            try:
+                session_data = json.load(session_json_file.stream)
+            except json.JSONDecodeError as e:
+                return jsonify({"error": f"Error al parsear JSON de sesión: {str(e)}"}), 400
         elif session_json_text:
-            session_data = json.loads(session_json_text)
+            try:
+                session_data = json.loads(session_json_text)
+            except json.JSONDecodeError as e:
+                return jsonify({"error": f"Error al parsear JSON de sesión: {str(e)}"}), 400
         else:
             return jsonify({"error": "Datos de sesión no proporcionados"}), 400
-            
-        # Validar estructura del JSON de sesión (CORREGIDO)
+        
+        # Validar JSON de sesión
         is_valid, validation_message = validate_session_json(session_data)
         if not is_valid:
             return jsonify({"error": f"JSON de sesión inválido: {validation_message}"}), 400
-            
+        
         # Cargar datos de clase
         class_data = None
         if class_json_file:
-            class_data = json.load(class_json_file.stream)
+            try:
+                class_data = json.load(class_json_file.stream)
+            except json.JSONDecodeError as e:
+                return jsonify({"error": f"Error al parsear JSON de clase: {str(e)}"}), 400
         elif class_json_text:
-            class_data = json.loads(class_json_text)
+            try:
+                class_data = json.loads(class_json_text)
+            except json.JSONDecodeError as e:
+                return jsonify({"error": f"Error al parsear JSON de clase: {str(e)}"}), 400
         else:
             return jsonify({"error": "Datos de clase no proporcionados"}), 400
+        
+        # Validar JSON de clase
+        is_valid, validation_message = validate_class_json(class_data)
+        if not is_valid:
+            return jsonify({"error": f"JSON de clase inválido: {validation_message}"}), 400
 
         # Formatear periodo
         period_str = format_period(start_date_str)
@@ -181,11 +193,9 @@ def generate_document():
 
         # Calcular edades de alumnos
         if 'alumnos' in class_data and isinstance(class_data['alumnos'], list):
-            class_data['alumnos'] = [
-                {**alumno, 'meses_alumno': calculate_age(alumno.get('fechaNacimiento', ''))}
-                for alumno in class_data['alumnos']
-                if 'fechaNacimiento' in alumno
-            ]
+            for alumno in class_data['alumnos']:
+                if 'fechaNacimiento' in alumno:
+                    alumno['meses_alumno'] = calculate_age(alumno['fechaNacimiento'])
 
         # Preparar contexto
         context = {
@@ -196,19 +206,20 @@ def generate_document():
         # Generar documento
         template_stream = io.BytesIO(template_file.read())
         doc = DocxTemplate(template_stream)
-        doc.render(context)
+        try:
+            doc.render(context)
+        except Exception as e:
+            return jsonify({"error": f"Error al renderizar la plantilla: {str(e)}"}), 400
         
         # Guardar en memoria
         output_stream = io.BytesIO()
         doc.save(output_stream)
         output_stream.seek(0)
         
-        # Generar nombre de archivo con el formato correcto
+        # Generar nombre de archivo
         nombre_proyecto = session_data.get('nombreproyecto', 'Proyecto')
-        # Limpiar nombre del proyecto para el nombre de archivo
         nombre_limpio = nombre_proyecto[:50].replace(' ', '_').replace('/', '_').replace('\\', '_')
         periodo_limpio = session_data['Periodo'].replace(' ', '_').replace('del_', 'Del_').replace('al_', 'al_').replace('de_', 'de_')
-        
         filename = f"sesion_{nombre_limpio}_{periodo_limpio}.docx"
         
         return send_file(
@@ -219,10 +230,8 @@ def generate_document():
         )
         
     except Exception as e:
-        print(f"Error generando documento: {e}")
+        print(f"Error generando documento: {str(e)}")
         return jsonify({"error": f"Error interno del servidor: {str(e)}"}), 500
-
-# Eliminamos la ruta /validate_json antigua ya que la validación se hace en /generate
 
 if __name__ == '__main__':
     app.run(debug=True)
