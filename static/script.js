@@ -26,9 +26,9 @@ const statusMessage = document.getElementById('status-message');
 // Event Listeners
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOMContentLoaded ejecutado, buscando formulario...');
-    generationForm = document.getElementById('uploadForm');
+    generationForm = document.getElementById('generation-form');
     if (!generationForm) {
-        console.error('Formulario con id="uploadForm" no encontrado');
+        console.error('Formulario con id="generation-form" no encontrado');
         console.log('Elementos del DOM:', document.querySelectorAll('form')); // Depuración
         alert('Error: Formulario no encontrado. Por favor, recargue la página.');
         return;
