@@ -237,3 +237,9 @@ function generateDocument(event) {
     const form = document.getElementById('generation-form');
     form.submit();
 }
+
+// Función para cerrar el modal de sesión
+function closeSessionJsonModal() {
+    sessionJsonModal.style.display = 'none';
+    updateActionLog('Modal cerrado');
+}
