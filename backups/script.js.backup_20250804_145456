@@ -1,0 +1,240 @@
+// Variables globales
+let sessionJsonData = {};
+let classJsonData = {};
+
+// Función para validar JSON
+function validateJson(jsonString, validationMessageId) {
+    try {
+        const json = JSON.parse(jsonString);
+        if (!json || typeof json !== 'object') throw new Error('JSON inválido');
+        if (!json.nombreproyecto || typeof json.nombreproyecto !== 'string') {
+            throw new Error('Falta o inválido el campo "nombreproyecto"');
+        }
+        document.getElementById(validationMessageId).textContent = 'JSON válido';
+        document.getElementById(validationMessageId).className = 'valid';
+        return json;
+    } catch (e) {
+        document.getElementById(validationMessageId).textContent = `Error: ${e.message}`;
+        document.getElementById(validationMessageId).className = 'invalid';
+        return null;
+    }
+}
+
+// Función para actualizar el nombre propuesto del archivo .docx
+function updateProposedFilename() {
+    const json = validateJson(
+        document.getElementById('session-json-textarea').value || 
+        (document.getElementById('session-json-file')?.files[0]?.text || '{}'),
+        'session-json-validation-message'
+    );
+    const startDate = document.getElementById('start-date')?.value;
+    const proposedFilename = document.getElementById('proposed-filename');
+    
+    if (proposedFilename) {
+        if (json && json.nombreproyecto && startDate) {
+            const cleanName = removeAccents(json.nombreproyecto.substring(0, 50));
+            const period = formatPeriod(startDate);
+            const cleanPeriod = removeAccents(period).replace('_', ' ');
+            proposedFilename.textContent = `sesion ${cleanName} ${cleanPeriod}.docx`;
+            updateActionLog(`Nombre propuesto actualizado: ${proposedFilename.textContent}`);
+        } else if (!startDate) {
+            updateActionLog('Esperando fecha para actualizar el nombre');
+        } else if (!json || !json.nombreproyecto) {
+            if (proposedFilename.textContent === 'Nombre no disponible') return;
+            proposedFilename.textContent = 'Nombre no disponible';
+            updateActionLog('Nombre propuesto actualizado: Nombre no disponible');
+        }
+    }
+}
+
+// Función para manejar la verificación del JSON de sesión
+function handleSessionJsonVerification() {
+    const textarea = document.getElementById('session-json-textarea');
+    const filenameInput = document.getElementById('session-json-filename');
+    const json = validateJson(textarea.value, 'session-json-validation-message');
+
+    if (json && json.nombreproyecto) {
+        const cleanName = removeAccents(json.nombreproyecto.substring(0, 50));
+        filenameInput.value = `sesion_${cleanName}`;
+        sessionJsonData = json;
+        updateProposedFilename();
+        updateActionLog('JSON de sesión verificado y nombre generado');
+    } else {
+        filenameInput.value = '';
+        updateActionLog('Error al verificar JSON de sesión');
+    }
+}
+
+// Función para guardar el JSON de sesión
+function handleSessionJsonSave() {
+    const textarea = document.getElementById('session-json-textarea');
+    const filenameInput = document.getElementById('session-json-filename').value;
+    if (textarea.value && filenameInput) {
+        const blob = new Blob([textarea.value], { type: 'application/json' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${filenameInput}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        updateActionLog(`JSON guardado como ${filenameInput}.json`);
+    } else {
+        updateActionLog('Error: No hay JSON o nombre para guardar');
+    }
+}
+
+// Función para cargar un JSON de sesión
+function handleSessionJsonLoad() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const json = validateJson(e.target.result, 'session-json-validation-message');
+                if (json) {
+                    document.getElementById('session-json-textarea').value = JSON.stringify(json, null, 2);
+                    handleSessionJsonVerification();
+                    updateActionLog(`JSON cargado desde ${file.name}`);
+                }
+            };
+            reader.readAsText(file);
+        }
+    };
+    input.click();
+}
+
+// Función para manejar la verificación del JSON de clase (deshabilitada por ahora)
+function handleClassJsonVerification() {
+    const textarea = document.getElementById('class-json-textarea');
+    validateJson(textarea.value, 'class-json-validation-message');
+    updateActionLog('Verificación de JSON de clase intentada (deshabilitada)');
+}
+
+// Función para actualizar el log de acciones
+function updateActionLog(message) {
+    const log = document.getElementById('action-log');
+    if (log) {
+        const li = document.createElement('li');
+        li.textContent = `${new Date().toLocaleTimeString()} - ${message}`;
+        log.appendChild(li);
+        log.scrollTop = log.scrollHeight;
+    }
+}
+
+// Función removeAccents
+function removeAccents(text) {
+    return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/ /g, '_');
+}
+
+// Función formatPeriod (alineada con app.py)
+function formatPeriod(startDateStr) {
+    try {
+        const startDate = new Date(startDateStr + 'T00:00:00');
+        if (isNaN(startDate.getTime())) throw new Error('Fecha inválida');
+        const daysUntilFriday = (4 - startDate.getDay() + 7) % 7 || 7;
+        const endDate = new Date(startDate);
+        endDate.setDate(startDate.getDate() + daysUntilFriday);
+        const monthMap = {
+            0: 'Enero', 1: 'Febrero', 2: 'Marzo', 3: 'Abril',
+            4: 'Mayo', 5: 'Junio', 6: 'Julio', 7: 'Agosto',
+            8: 'Septiembre', 9: 'Octubre', 10: 'Noviembre', 11: 'Diciembre'
+        };
+        return `Del ${startDate.getDate()} al ${endDate.getDate()} de ${monthMap[endDate.getMonth()]}`;
+    } catch (e) {
+        console.error('Error en formatPeriod:', e);
+        return 'Periodo no disponible';
+    }
+}
+
+// Event Listeners
+document.addEventListener('DOMContentLoaded', () => {
+    // Cargar archivo de plantilla
+    document.getElementById('template-file').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        document.getElementById('template-file-info').textContent = file ? file.name : 'Ningún archivo seleccionado';
+        updateActionLog(`Plantilla cargada: ${file ? file.name : 'Ninguna'}`);
+    });
+
+    // Cargar archivo JSON de sesión
+    document.getElementById('session-json-file').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        document.getElementById('session-json-file-info').textContent = file ? file.name : 'Ningún archivo seleccionado';
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                sessionJsonData = validateJson(e.target.result, 'session-json-validation-message');
+                if (sessionJsonData) {
+                    document.getElementById('session-json-textarea').value = JSON.stringify(sessionJsonData, null, 2);
+                    handleSessionJsonVerification();
+                }
+            };
+            reader.readAsText(file);
+            updateActionLog(`JSON de sesión cargado: ${file.name}`);
+        }
+    });
+
+    // Cargar archivo JSON de clase
+    document.getElementById('class-json-file').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        document.getElementById('class-json-file-info').textContent = file ? file.name : 'Ningún archivo seleccionado';
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                classJsonData = validateJson(e.target.result, 'class-json-validation-message');
+                if (classJsonData) {
+                    document.getElementById('class-json-textarea').value = JSON.stringify(classJsonData, null, 2);
+                }
+            };
+            reader.readAsText(file);
+            updateActionLog(`JSON de clase cargado: ${file.name}`);
+        }
+    });
+
+    // Cambiar fecha
+    document.getElementById('start-date').addEventListener('change', updateProposedFilename);
+
+    // Abrir modal de sesión
+    document.getElementById('paste-session-btn').addEventListener('click', () => {
+        document.getElementById('session-json-modal').style.display = 'block';
+        updateActionLog('Modal de sesión abierto');
+    });
+
+    // Abrir modal de clase
+    document.getElementById('paste-class-btn').addEventListener('click', () => {
+        document.getElementById('class-json-modal').style.display = 'block';
+        updateActionLog('Modal de clase abierto');
+    });
+
+    // Cerrar modales
+    document.querySelectorAll('.close').forEach(closeBtn => {
+        closeBtn.addEventListener('click', () => {
+            closeBtn.closest('.modal').style.display = 'none';
+            updateActionLog('Modal cerrado');
+        });
+    });
+
+    // Verificar JSON de sesión
+    document.getElementById('verify-session-json-btn').addEventListener('click', handleSessionJsonVerification);
+
+    // Verificar JSON de clase (deshabilitado)
+    document.getElementById('verify-class-json-btn').addEventListener('click', handleClassJsonVerification);
+
+    // Guardar JSON de sesión
+    document.getElementById('save-session-json-btn').addEventListener('click', handleSessionJsonSave);
+
+    // Cargar JSON de sesión
+    document.getElementById('load-session-json-btn').addEventListener('click', handleSessionJsonLoad);
+
+    // Actualizar nombre al escribir en textarea de sesión
+    document.getElementById('session-json-textarea').addEventListener('input', () => {
+        handleSessionJsonVerification();
+    });
+
+    // Inicializar nombre al cargar la página
+    updateProposedFilename();
+});

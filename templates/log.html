@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro del Sistema - Generador de Sesiones</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        /* Estilos específicos para log.html */
+        .log-container {
+            display: flex;
+            height: calc(100vh - 20px);
+            padding: 10px;
+            gap: 15px;
+            font-size: 14px;
+        }
+
+        .log-sidebar {
+            flex: 0 0 250px;
+            background-color: #f0f8ff;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 1px 5px rgba(0,0,0,0.1);
+            overflow-y: auto;
+        }
+
+        .log-sidebar h3 {
+            margin-top: 0;
+            color: #2c3e50;
+            border-bottom: 2px solid #4A90E2;
+            padding-bottom: 5px;
+        }
+
+        .log-sidebar ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .log-sidebar li {
+            margin: 8px 0;
+            padding: 6px;
+            background-color: #ffffff;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .log-content {
+            flex: 1;
+            background-color: #ffffff;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            line-height: 1.5;
+        }
+
+        .status-good {
+            color: #27ae60;
+            font-weight: bold;
+        }
+
+        .status-warning {
+            color: #f39c12;
+            font-weight: bold;
+        }
+
+        .status-error {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+
+        .info-box {
+            background-color: #f8f9fa;
+            border-left: 4px solid #4A90E2;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+
+        .timestamp {
+            color: #7f8c8d;
+            font-size: 0.9em;
+        }
+
+        .action {
+            color: #2c3e50;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="log-container">
+        <!-- Barra lateral de navegación -->
+        <div class="log-sidebar">
+            <h3>Secciones</h3>
+            <ul>
+                <li><a href="#system-status">Estado del Sistema</a></li>
+                <li><a href="#action-log">Registro de Acciones</a></li>
+                <li><a href="#file-status">Archivos Cargados</a></li>
+                <li><a href="#session-data">Datos de Sesión</a></li>
+                <li><a href="#class-data">Datos de Clase</a></li>
+                <li><a href="#generation-info">Información de Generación</a></li>
+            </ul>
+
+            <h3>Acciones Rápidas</h3>
+            <ul>
+                <li><a href="{{ url_for('index') }}">Volver al Generador</a></li>
+                <li><button onclick="clearLog()" style="width:100%; padding:5px; background:#e74c3c; color:white; border:none; border-radius:4px;">Limpiar Log</button></li>
+            </ul>
+        </div>
+
+        <!-- Contenido principal -->
+        <div class="log-content" id="log-content">
+            <h1>📋 Registro del Sistema</h1>
+            <p>Esta página muestra toda la información relevante del generador de sesiones.</p>
+
+            <div id="system-status">
+                <h2>🟢 Estado del Sistema</h2>
+                <div class="info-box">
+                    <p><strong>Aplicación:</strong> <span class="status-good">Activa</span></p>
+                    <p><strong>Fecha de inicio:</strong> <span id="server-start-time">{{ start_time }}</span></p>
+                    <p><strong>Versión:</strong> 1.5</p>
+                    <p><strong>Entorno:</strong> {{ 'Desarrollo' if debug else 'Producción' }}</p>
+                </div>
+            </div>
+
+            <div id="action-log">
+                <h2>📝 Registro de Acciones</h2>
+                <div class="info-box">
+                    <ul id="action-items">
+                        <li><span class="timestamp">[12:00:00]</span> <span class="action">Sistema iniciado</span></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div id="file-status">
+                <h2>📁 Estado de Archivos</h2>
+                <div class="info-box">
+                    <p><strong>Plantilla:</strong> <span id="template-status">No cargada</span></p>
+                    <p><strong>JSON Sesión:</strong> <span id="session-json-status">No cargado</span></p>
+                    <p><strong>JSON Clase:</strong> <span id="class-json-status">No cargado</span></p>
+                </div>
+            </div>
+
+            <div id="session-data">
+                <h2>📊 Datos de Sesión</h2>
+                <div class="info-box">
+                    <p><strong>Nombre del Proyecto:</strong> <span id="session-project">-</span></p>
+                    <p><strong>Periodo Calculado:</strong> <span id="session-period">-</span></p>
+                </div>
+            </div>
+
+            <div id="class-data">
+                <h2>👥 Datos de Clase</h2>
+                <div class="info-box">
+                    <p><strong>Total de Alumnos:</strong> <span id="class-count">0</span></p>
+                    <p><strong>Edad Promedio:</strong> <span id="class-age">-</span></p>
+                </div>
+            </div>
+
+            <div id="generation-info">
+                <h2>🖨️ Generación de Documento</h2>
+                <div class="info-box">
+                    <p><strong>Nombre Propuesto:</strong> <span id="proposed-filename-display">Nombre no disponible</span></p>
+                    <p><strong>Última Generación:</strong> <span id="last-generation">Nunca</span></p>
+                    <p><strong>Estado:</strong> <span id="generation-status">Listo</span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Simulación de log (en producción, vendría del backend)
+        const actionLog = document.getElementById('action-items');
+        const startTime = new Date().toLocaleString();
+        document.getElementById('server-start-time').textContent = startTime;
+
+        // Actualizar log desde eventos del frontend
+        function logAction(message, type = 'info') {
+            const now = new Date().toLocaleTimeString();
+            const li = document.createElement('li');
+            li.innerHTML = `<span class="timestamp">[${now}]</span> <span class="action">${message}</span>`;
+            actionLog.appendChild(li);
+            actionLog.scrollTop = actionLog.scrollHeight;
+        }
+
+        // Escuchar eventos del generador si está en la misma página
+        window.addEventListener('message', function(e) {
+            if (e.data.type === 'log') {
+                logAction(e.data.message);
+            } else if (e.data.type === 'fileLoaded') {
+                document.getElementById(e.data.target + '-status').textContent = '✅ Cargado: ' + e.data.filename;
+            } else if (e.data.type === 'sessionData') {
+                document.getElementById('session-project').textContent = e.data.projectName;
+                document.getElementById('session-period').textContent = e.data.period;
+            } else if (e.data.type === 'classData') {
+                document.getElementById('class-count').textContent = e.data.count;
+            } else if (e.data.type === 'filename') {
+                document.getElementById('proposed-filename-display').textContent = e.data.filename;
+            }
+        });
+
+        function clearLog() {
+            actionLog.innerHTML = '';
+            logAction('Log limpiado por el usuario');
+        }
+
+        // Ejemplos iniciales
+        logAction('Página de log cargada');
+    </script>
+</body>
+</html>
