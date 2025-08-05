@@ -53,8 +53,7 @@ def format_period(start_date_str):
         period_str = f"Del {start_date.day} al {end_date.day} de {month_name_spanish}"
         return period_str
     except Exception as e:
-        logger.error(f"Error formateando periodo: {e}")
-        return "Periodo no disponible"
+        return 'Periodo no disponible'
 
 def remove_accents(text):
     """Elimina acentos usando la librería unidecode."""
@@ -165,6 +164,8 @@ def index():
 
 @app.route('/generate', methods=['POST'])
 def generate_document():
+    """Endpoint para generar el documento .docx."""
+    logger.debug("Iniciando generación de documento.")
     """Endpoint para generar y devolver directamente el documento .docx."""
     try:
         template_file = request.files.get('template')

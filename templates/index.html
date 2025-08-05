@@ -14,6 +14,10 @@
                 <h2>Datos Generales</h2>
             </div>
             <form id="generation-form" method="POST" enctype="multipart/form-data" action="/generate">
+        <!-- Campos ocultos para datos JSON -->
+        <input type="hidden" id="session-json-text" name="session_json_text">
+        <input type="hidden" id="class-json-text" name="class_json_text">
+
                 <!-- Carga de Plantilla -->
                 <label for="template-file">Plantilla Word (.docx):</label>
                 <input type="file" id="template-file" name="template" accept=".docx" required>
@@ -69,7 +73,7 @@
             <div class="button-group">
                 <button type="button" class="secondary-button" id="verify-session-json-btn">Verificar</button>
                 <button type="button" class="secondary-button" id="save-session-json-btn">Guardar</button>
-                <button type="button" class="main-button" id="load-session-json-btn">Cargar</button>
+                <button type="button" class="main-button" id="load-session-json-btn" onclick="handleSessionJsonLoad()">Cargar</button>
             </div>
             <div id="session-json-validation-message"></div>
         </div>
@@ -84,7 +88,7 @@
             <textarea id="class-json-textarea" placeholder="Pegue aquí el contenido JSON de clase..."></textarea>
             <div class="button-group">
                 <button type="button" class="secondary-button" id="verify-class-json-btn">Verificar</button>
-                <button type="button" class="main-button" id="load-class-json-btn">Cargar</button>
+                <button type="button" class="main-button" id="load-class-json-btn" onclick="handleClassJsonLoad()">Cargar</button>
             </div>
             <div id="class-json-validation-message"></div>
         </div>
