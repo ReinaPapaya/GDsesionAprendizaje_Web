@@ -123,37 +123,103 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    // Guardar JSON de sesión
-    document.getElementById('save-session-json-btn')?.addEventListener('click', () => {
+    // Guardar JSON de sesión (actualizado para usar File System Access API)
+    document.getElementById('save-session-json-btn')?.addEventListener('click', async () => {
         const jsonText = sessionJsonTextarea.value.trim();
-        let filename = 'sesion_proyecto.json';
-        const filenameInput = sessionJsonFilename.value.trim();
-        if (filenameInput) {
-            filename = `${filenameInput}.json`;
-        } else {
-            try {
-                const parsed = JSON.parse(jsonText);
-                if (parsed.nombreproyecto) {
-                    const cleanName = parsed.nombreproyecto.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 50);
-                    filename = `sesion_${cleanName}.json`;
-                }
-            } catch (e) { /* Ignorar error de parseo para nombre por defecto */ }
+        if (!jsonText) {
+            alert('No hay contenido JSON para guardar.');
+            return;
         }
-        if (jsonText) {
+
+        try {
+            // Crear nombre de archivo más descriptivo
+            let filename = 'sesion_proyecto.json';
+            const parsed = JSON.parse(jsonText);
+            if (parsed.nombreproyecto) {
+                const cleanName = parsed.nombreproyecto
+                    .replace(/[^a-zA-Z0-9\s]/g, '_')
+                    .substring(0, 50);
+                filename = `sesion_${cleanName}.json`;
+            }
+
+            // --- Intentar usar File System Access API (Chrome/Edge moderno) ---
+            if ('showSaveFilePicker' in window) {
+                try {
+                    updateActionLog('Intentando usar selector de archivos del sistema...');
+                    const handle = await window.showSaveFilePicker({
+                        suggestedName: filename,
+                        types: [{
+                            description: 'Archivos JSON',
+                            accept: { 'application/json': ['.json'] }
+                        }]
+                    });
+
+                    const writable = await handle.createWritable();
+                    await writable.write(jsonText);
+                    await writable.close();
+
+                    updateActionLog(`JSON guardado como ${handle.name} usando selector del sistema.`);
+                    return; // Salir si se usó la API moderna
+                } catch (err) {
+                    if (err.name === 'AbortError') {
+                        updateActionLog('Guardado cancelado por el usuario en el selector del sistema.');
+                        return;
+                    } else {
+                        console.warn('API File System Access no disponible o falló, usando método alternativo:', err);
+                        updateActionLog('Selector del sistema no disponible, usando método de descarga estándar...');
+                        // Continuar con el método alternativo si la API falla por otros motivos
+                    }
+                }
+            }
+
+            // --- Método alternativo para navegadores que no soportan File System API ---
+            updateActionLog('Preparando descarga estándar...');
             const blob = new Blob([jsonText], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
             a.download = filename;
+            a.style.display = 'none';
+
+            // Forzar click con un pequeño retraso para mejorar compatibilidad
             document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            updateActionLog(`JSON guardado como ${filename}`);
-        } else {
-            alert('No hay contenido JSON para guardar.');
+            setTimeout(() => {
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                updateActionLog(`JSON descargado como ${filename} (método estándar).`);
+            }, 100);
+
+        } catch (e) {
+            console.error('Error al guardar JSON:', e);
+            updateActionLog(`Error al guardar JSON: ${e.message}`);
+            alert('Error al guardar el archivo: ' + e.message);
         }
     });
+
+
+    // --- Asignar event listener al botón de carga del modal de sesión ---
+    // Este listener se asigna aquí para asegurar que handleSessionJsonLoad esté definida
+    const loadSessionBtn = document.getElementById('load-session-json-btn');
+    if (loadSessionBtn) {
+        // Asegurarse de que no tenga un onclick inline que pueda interferir
+        loadSessionBtn.removeAttribute('onclick');
+        loadSessionBtn.addEventListener('click', handleSessionJsonLoad);
+        console.log("[INIT] Event listener asignado a 'load-session-json-btn'.");
+    } else {
+        console.warn("[WARN] Botón 'load-session-json-btn' no encontrado en el DOM al inicializar.");
+    }
+
+    // --- Asignar event listener al botón de carga del modal de clase ---
+    const loadClassBtn = document.getElementById('load-class-json-btn');
+    if (loadClassBtn) {
+        // Asegurarse de que no tenga un onclick inline que pueda interferir
+        loadClassBtn.removeAttribute('onclick');
+        loadClassBtn.addEventListener('click', handleClassJsonLoad);
+        console.log("[INIT] Event listener asignado a 'load-class-json-btn'.");
+    } else {
+        console.warn("[WARN] Botón 'load-class-json-btn' no encontrado en el DOM al inicializar.");
+    }
 
     // Actualizar nombre del archivo al cambiar fecha
     document.getElementById('start-date')?.addEventListener('change', updateProposedFilename);
@@ -234,13 +300,12 @@ function updateActionLog(message) {
 // Estas funciones son clave para pasar los datos del JS al backend al enviar el formulario
 function setSessionJsonText(data) {
     console.log("[FUNC] setSessionJsonText llamada.");
-    // Asegurar que el campo oculto exista y sea accesible
     const sessionJsonTextInput = document.getElementById('session-json-text');
     if (sessionJsonTextInput) {
         sessionJsonTextInput.value = JSON.stringify(data);
         console.log("[FUNC] Campo 'session-json-text' actualizado.");
     } else {
-        console.error("[ERROR] Campo 'session-json-text' no encontrado al intentar actualizar. Asegúrate de que esté definido en el formulario HTML.");
+        console.error("[ERROR] Campo 'session-json-text' no encontrado al intentar actualizar.");
     }
 }
 
@@ -309,18 +374,18 @@ function handleSessionJsonLoad() {
 
         // 2. Actualizar el campo oculto del formulario para que esté disponible al enviar
         setSessionJsonText(parsedData);
-        
+
         // 3. Limpiar el input de archivo físico si existía
         const sessionJsonFileInput = document.getElementById('session-json-file');
         if (sessionJsonFileInput) {
             sessionJsonFileInput.value = '';
         }
-        
+
         // 4. ACTUALIZACIÓN CLAVE: Actualizar visualmente el campo "Archivo seleccionado"
         // para indicar que los datos vienen del modal, incluyendo el nombre del proyecto.
         updateFileInfo(document.getElementById('session-json-file-info'), null, `Datos cargados desde el modal: ${projectName}`);
         updateActionLog(`JSON de sesión cargado desde el modal: ${projectName}`);
-        
+
         // 5. Cerrar modal y actualizar otros elementos
         closeSessionJsonModal();
         updateProposedFilename();
@@ -346,19 +411,19 @@ function handleClassJsonLoad() {
 
         // 2. Actualizar el campo oculto del formulario para que esté disponible al enviar
         setClassJsonText(parsedData);
-        
+
         // 3. Limpiar el input de archivo físico si existía
         const classJsonFileInput = document.getElementById('class-json-file');
         if (classJsonFileInput) {
             classJsonFileInput.value = '';
         }
-        
+
         // 4. ACTUALIZACIÓN CLAVE: Actualizar visualmente el campo "Archivo seleccionado"
         // para indicar que los datos vienen del modal. (Opcional: mostrar info del JSON si es relevante)
         // Como no hay un campo "nombre" obvio en el JSON de clase, mostramos un mensaje genérico.
         updateFileInfo(document.getElementById('class-json-file-info'), null, "Datos de clase cargados desde el modal");
         updateActionLog('JSON de clase cargado desde el modal');
-        
+
         // 5. Cerrar modal
         closeClassJsonModal();
         console.log("[FUNC] handleClassJsonLoad completada.");
@@ -445,20 +510,50 @@ async function generateDocument(event) {
                 console.warn("[WARN] No se pudo parsear el nombre del archivo del header. Usando nombre por defecto.");
             }
         } else {
-             console.warn("[WARN] Header 'Content-Disposition' no encontrado. Usando nombre por defecto.");
+            console.warn("[WARN] Header 'Content-Disposition' no encontrado. Usando nombre por defecto.");
         }
 
-        // 5. Crear Blob y forzar la descarga con diálogo
+        // --- Intentar usar File System Access API primero para la descarga del documento ---
+        if ('showSaveFilePicker' in window) {
+            try {
+                updateActionLog('Intentando usar selector de archivos del sistema para el documento...');
+                const handle = await window.showSaveFilePicker({
+                    suggestedName: filename,
+                    types: [{
+                        description: 'Documentos Word',
+                        accept: { 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'] }
+                    }]
+                });
+
+                const writable = await handle.createWritable();
+                await writable.write(await response.blob());
+                await writable.close();
+
+                updateActionLog(`Documento guardado como ${handle.name} usando selector del sistema.`);
+                return; // Salir si se usó la API moderna
+            } catch (err) {
+                if (err.name === 'AbortError') {
+                    updateActionLog('Guardado cancelado por el usuario en el selector del sistema.');
+                    return;
+                } else {
+                    console.warn('API File System Access no disponible o falló para documento, usando método alternativo:', err);
+                    updateActionLog('Selector del sistema no disponible, usando método de descarga estándar...');
+                    // Continuar con método alternativo
+                }
+            }
+        }
+
+        // 5. Crear Blob y forzar la descarga con diálogo (método alternativo)
         console.log("[DL] Creando Blob desde la respuesta...");
         const blob = await response.blob();
         console.log(`[DL] Blob creado. Tamaño: ${blob.size} bytes.`);
 
         if (blob.size === 0) {
-             const errorMsg = 'Error: El servidor devolvió un archivo vacío.';
-             console.error(errorMsg);
-             updateActionLog(errorMsg);
-             alert(errorMsg);
-             return;
+            const errorMsg = 'Error: El servidor devolvió un archivo vacío.';
+            console.error(errorMsg);
+            updateActionLog(errorMsg);
+            alert(errorMsg);
+            return;
         }
 
         const url = window.URL.createObjectURL(blob);
