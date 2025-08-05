@@ -3,6 +3,13 @@
 window.sessionData = null;
 window.classData = null;
 
+// --- Estado unificado de datos cargados ---
+window.estadoDatos = {
+    sesion: { cargado: false, nombreArchivo: null, origen: null },
+    clase: { cargado: false, nombreArchivo: null, origen: null },
+    plantilla: { cargado: false, nombreArchivo: null, origen: null }
+};
+
 // --- DOM Elements ---
 const sessionJsonModal = document.getElementById('session-json-modal');
 const classJsonModal = document.getElementById('class-json-modal');
@@ -32,6 +39,18 @@ document.addEventListener('DOMContentLoaded', function () {
         const file = this.files[0];
         updateFileInfo(templateFileInfo, file);
         updateActionLog(`Plantilla cargada: ${file ? file.name : 'Ninguna'}`);
+        
+        // --- ACTUALIZACIÓN DEL ESTADO UNIFICADO ---
+        if (file) {
+            window.estadoDatos.plantilla.cargado = true;
+            window.estadoDatos.plantilla.nombreArchivo = file.name;
+            window.estadoDatos.plantilla.origen = 'archivo';
+        } else {
+            window.estadoDatos.plantilla.cargado = false;
+            window.estadoDatos.plantilla.nombreArchivo = null;
+            window.estadoDatos.plantilla.origen = null;
+        }
+        actualizarEstadoGeneral();
     });
 
     // Cargar JSON de sesión desde archivo
@@ -47,14 +66,32 @@ document.addEventListener('DOMContentLoaded', function () {
                     setSessionJsonText(data); // Actualizar campo oculto del formulario
                     updateActionLog(`JSON de Sesión cargado desde archivo: ${file.name}`);
                     updateProposedFilename();
+                    
+                    // --- ACTUALIZACIÓN DEL ESTADO UNIFICADO ---
+                    window.estadoDatos.sesion.cargado = true;
+                    window.estadoDatos.sesion.nombreArchivo = file.name;
+                    window.estadoDatos.sesion.origen = 'archivo';
+                    actualizarEstadoGeneral();
                 } catch (error) {
                     console.error('[ERROR] Leer JSON sesión:', error);
                     alert('Error al leer el archivo JSON de sesión.');
                     sessionJsonFile.value = '';
                     updateFileInfo(sessionJsonFileInfo, null); // Limpiar visualmente
+                    
+                    // --- ACTUALIZACIÓN DEL ESTADO UNIFICADO ---
+                    window.estadoDatos.sesion.cargado = false;
+                    window.estadoDatos.sesion.nombreArchivo = null;
+                    window.estadoDatos.sesion.origen = null;
+                    actualizarEstadoGeneral();
                 }
             };
             reader.readAsText(file);
+        } else {
+             // --- ACTUALIZACIÓN DEL ESTADO UNIFICADO ---
+            window.estadoDatos.sesion.cargado = false;
+            window.estadoDatos.sesion.nombreArchivo = null;
+            window.estadoDatos.sesion.origen = null;
+            actualizarEstadoGeneral();
         }
     });
 
@@ -70,14 +107,32 @@ document.addEventListener('DOMContentLoaded', function () {
                     window.classData = data; // Guardar en variable global
                     setClassJsonText(data); // Actualizar campo oculto del formulario
                     updateActionLog(`JSON de Clase cargado desde archivo: ${file.name}`);
+                    
+                    // --- ACTUALIZACIÓN DEL ESTADO UNIFICADO ---
+                    window.estadoDatos.clase.cargado = true;
+                    window.estadoDatos.clase.nombreArchivo = file.name;
+                    window.estadoDatos.clase.origen = 'archivo';
+                    actualizarEstadoGeneral();
                 } catch (error) {
                     console.error('[ERROR] Leer JSON clase:', error);
                     alert('Error al leer el archivo JSON de clase.');
                     classJsonFile.value = '';
                     updateFileInfo(classJsonFileInfo, null); // Limpiar visualmente
+                    
+                    // --- ACTUALIZACIÓN DEL ESTADO UNIFICADO ---
+                    window.estadoDatos.clase.cargado = false;
+                    window.estadoDatos.clase.nombreArchivo = null;
+                    window.estadoDatos.clase.origen = null;
+                    actualizarEstadoGeneral();
                 }
             };
             reader.readAsText(file);
+        } else {
+            // --- ACTUALIZACIÓN DEL ESTADO UNIFICADO ---
+            window.estadoDatos.clase.cargado = false;
+            window.estadoDatos.clase.nombreArchivo = null;
+            window.estadoDatos.clase.origen = null;
+            actualizarEstadoGeneral();
         }
     });
 
@@ -126,22 +181,20 @@ document.addEventListener('DOMContentLoaded', function () {
     // Guardar JSON de sesión (actualizado para usar File System Access API)
     document.getElementById('save-session-json-btn')?.addEventListener('click', async () => {
         const jsonText = sessionJsonTextarea.value.trim();
-        if (!jsonText) {
-            alert('No hay contenido JSON para guardar.');
-            return;
+        let filename = 'sesion_proyecto.json';
+        const filenameInput = sessionJsonFilename.value.trim();
+        if (filenameInput) {
+            filename = `${filenameInput}.json`;
+        } else {
+            try {
+                const parsed = JSON.parse(jsonText);
+                if (parsed.nombreproyecto) {
+                    const cleanName = parsed.nombreproyecto.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 50);
+                    filename = `sesion_${cleanName}.json`;
+                }
+            } catch (e) { /* Ignorar error de parseo para nombre por defecto */ }
         }
-
-        try {
-            // Crear nombre de archivo más descriptivo
-            let filename = 'sesion_proyecto.json';
-            const parsed = JSON.parse(jsonText);
-            if (parsed.nombreproyecto) {
-                const cleanName = parsed.nombreproyecto
-                    .replace(/[^a-zA-Z0-9\s]/g, '_')
-                    .substring(0, 50);
-                filename = `sesion_${cleanName}.json`;
-            }
-
+        if (jsonText) {
             // --- Intentar usar File System Access API (Chrome/Edge moderno) ---
             if ('showSaveFilePicker' in window) {
                 try {
@@ -150,14 +203,14 @@ document.addEventListener('DOMContentLoaded', function () {
                         suggestedName: filename,
                         types: [{
                             description: 'Archivos JSON',
-                            accept: { 'application/json': ['.json'] }
+                            accept: {'application/json': ['.json']}
                         }]
                     });
-
+                    
                     const writable = await handle.createWritable();
                     await writable.write(jsonText);
                     await writable.close();
-
+                    
                     updateActionLog(`JSON guardado como ${handle.name} usando selector del sistema.`);
                     return; // Salir si se usó la API moderna
                 } catch (err) {
@@ -179,53 +232,25 @@ document.addEventListener('DOMContentLoaded', function () {
             const a = document.createElement('a');
             a.href = url;
             a.download = filename;
-            a.style.display = 'none';
-
-            // Forzar click con un pequeño retraso para mejorar compatibilidad
             document.body.appendChild(a);
-            setTimeout(() => {
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-                updateActionLog(`JSON descargado como ${filename} (método estándar).`);
-            }, 100);
-
-        } catch (e) {
-            console.error('Error al guardar JSON:', e);
-            updateActionLog(`Error al guardar JSON: ${e.message}`);
-            alert('Error al guardar el archivo: ' + e.message);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            updateActionLog(`JSON guardado como ${filename} (método estándar).`);
+        } else {
+            alert('No hay contenido JSON para guardar.');
         }
     });
 
-
-    // --- Asignar event listener al botón de carga del modal de sesión ---
-    // Este listener se asigna aquí para asegurar que handleSessionJsonLoad esté definida
-    const loadSessionBtn = document.getElementById('load-session-json-btn');
-    if (loadSessionBtn) {
-        // Asegurarse de que no tenga un onclick inline que pueda interferir
-        loadSessionBtn.removeAttribute('onclick');
-        loadSessionBtn.addEventListener('click', handleSessionJsonLoad);
-        console.log("[INIT] Event listener asignado a 'load-session-json-btn'.");
-    } else {
-        console.warn("[WARN] Botón 'load-session-json-btn' no encontrado en el DOM al inicializar.");
-    }
-
-    // --- Asignar event listener al botón de carga del modal de clase ---
-    const loadClassBtn = document.getElementById('load-class-json-btn');
-    if (loadClassBtn) {
-        // Asegurarse de que no tenga un onclick inline que pueda interferir
-        loadClassBtn.removeAttribute('onclick');
-        loadClassBtn.addEventListener('click', handleClassJsonLoad);
-        console.log("[INIT] Event listener asignado a 'load-class-json-btn'.");
-    } else {
-        console.warn("[WARN] Botón 'load-class-json-btn' no encontrado en el DOM al inicializar.");
-    }
-
     // Actualizar nombre del archivo al cambiar fecha
-    document.getElementById('start-date')?.addEventListener('change', updateProposedFilename);
+    document.getElementById('start-date')?.addEventListener('change', function() {
+        updateProposedFilename();
+        actualizarEstadoGeneral(); // <-- También actualizar el estado general al cambiar la fecha
+    });
 
     // Inicializar
     updateProposedFilename();
+    actualizarEstadoGeneral(); // Inicializar estado al cargar
 
     // Enviar formulario
     generationForm.addEventListener('submit', generateDocument);
@@ -233,6 +258,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 // --- Funciones auxiliares ---
 
+// SECCION_INICIO: funcion_update_file_info_mejorada
 function updateFileInfo(infoElement, file, customMessage = null) {
     // Esta función actualiza el texto que indica el estado del input de archivo
     if (infoElement) {
@@ -241,7 +267,7 @@ function updateFileInfo(infoElement, file, customMessage = null) {
             infoElement.textContent = `Archivo seleccionado: ${file.name}`;
             infoElement.style.display = 'block';
         } else if (customMessage) {
-            // Si no hay archivo pero se proporciona un mensaje personalizado (desde modal)
+            // Si no hay archivo pero se proporciona un mensaje personalizado (desde modal, estado)
             infoElement.textContent = customMessage;
             infoElement.style.display = 'block'; // Mostrar el mensaje
         } else {
@@ -251,6 +277,7 @@ function updateFileInfo(infoElement, file, customMessage = null) {
         }
     }
 }
+// SECCION_FIN: funcion_update_file_info_mejorada
 
 function updateProposedFilename() {
     const startDate = document.getElementById('start-date')?.value;
@@ -287,6 +314,70 @@ function formatPeriod(startDateStr) {
         return 'Periodo no disponible';
     }
 }
+
+// SECCION_INICIO: manejo_estado_datos_unificado
+function actualizarEstadoGeneral() {
+    console.log("[ESTADO] Actualizando estado general de datos cargados.");
+    const startDate = document.getElementById('start-date')?.value;
+
+    // --- Evaluación del estado de Sesión ---
+    const sesionInfoElement = document.getElementById('session-json-file-info');
+    if (window.estadoDatos.sesion.cargado) {
+        const nombreMostrado = window.estadoDatos.sesion.nombreArchivo || 'Datos de sesión cargados';
+        const origen = window.estadoDatos.sesion.origen;
+        let mensaje = `Archivo cargado: ${nombreMostrado}`;
+        if (origen === 'modal') {
+            mensaje += " (desde modal)";
+        }
+        updateFileInfo(sesionInfoElement, null, mensaje);
+    } else {
+        updateFileInfo(sesionInfoElement, null, 'Ningún archivo de sesión seleccionado');
+    }
+
+    // --- Evaluación del estado de Clase ---
+    const claseInfoElement = document.getElementById('class-json-file-info');
+    if (window.estadoDatos.clase.cargado) {
+        const nombreMostrado = window.estadoDatos.clase.nombreArchivo || 'Datos de clase cargados';
+        const origen = window.estadoDatos.clase.origen;
+        let mensaje = `Archivo cargado: ${nombreMostrado}`;
+        if (origen === 'modal') {
+            mensaje += " (desde modal)";
+        }
+        updateFileInfo(claseInfoElement, null, mensaje);
+    } else {
+        updateFileInfo(claseInfoElement, null, 'Ningún archivo de clase seleccionado');
+    }
+
+    // --- Evaluación del estado de Plantilla ---
+    const plantillaInfoElement = document.getElementById('template-file-info');
+    if (window.estadoDatos.plantilla.cargado) {
+        const nombreMostrado = window.estadoDatos.plantilla.nombreArchivo || 'Plantilla cargada';
+        // Origen para plantilla solo puede ser 'archivo'
+        updateFileInfo(plantillaInfoElement, null, `Archivo cargado: ${nombreMostrado}`);
+    } else {
+        updateFileInfo(plantillaInfoElement, null, 'Ningún archivo de plantilla seleccionado');
+    }
+
+    // --- Evaluación y actualización del nombre propuesto / campos faltantes ---
+    const faltantes = [];
+    if (!window.estadoDatos.plantilla.cargado) faltantes.push("plantilla");
+    if (!window.estadoDatos.sesion.cargado) faltantes.push("sesión");
+    if (!window.estadoDatos.clase.cargado) faltantes.push("clase");
+    if (!startDate) faltantes.push("fecha");
+
+    if (faltantes.length > 0) {
+        const mensajeFaltantes = `Datos faltantes: ${faltantes.join(', ')}.`;
+        updateActionLog(mensajeFaltantes);
+        // Aquí podrías mostrar el mensaje en otro lugar de la UI si lo deseas
+        // Por ejemplo: document.getElementById('mensaje-datos-faltantes').textContent = mensajeFaltantes;
+    } else {
+        // Todos los datos están cargados, se puede proponer nombre
+        if (window.sessionData && window.sessionData.nombreproyecto) {
+             updateProposedFilename(); // Esta función ya existe y maneja la lógica
+        }
+    }
+}
+// SECCION_FIN: manejo_estado_datos_unificado
 
 function updateActionLog(message) {
     console.log(`[LOG] ${message}`);
@@ -374,18 +465,24 @@ function handleSessionJsonLoad() {
 
         // 2. Actualizar el campo oculto del formulario para que esté disponible al enviar
         setSessionJsonText(parsedData);
-
+        
         // 3. Limpiar el input de archivo físico si existía
         const sessionJsonFileInput = document.getElementById('session-json-file');
         if (sessionJsonFileInput) {
             sessionJsonFileInput.value = '';
         }
-
+        
         // 4. ACTUALIZACIÓN CLAVE: Actualizar visualmente el campo "Archivo seleccionado"
         // para indicar que los datos vienen del modal, incluyendo el nombre del proyecto.
         updateFileInfo(document.getElementById('session-json-file-info'), null, `Datos cargados desde el modal: ${projectName}`);
         updateActionLog(`JSON de sesión cargado desde el modal: ${projectName}`);
-
+        
+        // --- ACTUALIZACIÓN DEL ESTADO UNIFICADO ---
+        window.estadoDatos.sesion.cargado = true;
+        window.estadoDatos.sesion.nombreArchivo = `${projectName}.json`;
+        window.estadoDatos.sesion.origen = 'modal';
+        actualizarEstadoGeneral();
+        
         // 5. Cerrar modal y actualizar otros elementos
         closeSessionJsonModal();
         updateProposedFilename();
@@ -411,19 +508,25 @@ function handleClassJsonLoad() {
 
         // 2. Actualizar el campo oculto del formulario para que esté disponible al enviar
         setClassJsonText(parsedData);
-
+        
         // 3. Limpiar el input de archivo físico si existía
         const classJsonFileInput = document.getElementById('class-json-file');
         if (classJsonFileInput) {
             classJsonFileInput.value = '';
         }
-
+        
         // 4. ACTUALIZACIÓN CLAVE: Actualizar visualmente el campo "Archivo seleccionado"
         // para indicar que los datos vienen del modal. (Opcional: mostrar info del JSON si es relevante)
         // Como no hay un campo "nombre" obvio en el JSON de clase, mostramos un mensaje genérico.
         updateFileInfo(document.getElementById('class-json-file-info'), null, "Datos de clase cargados desde el modal");
         updateActionLog('JSON de clase cargado desde el modal');
-
+        
+        // --- ACTUALIZACIÓN DEL ESTADO UNIFICADO ---
+        window.estadoDatos.clase.cargado = true;
+        window.estadoDatos.clase.nombreArchivo = "Datos de clase cargados desde el modal";
+        window.estadoDatos.clase.origen = 'modal';
+        actualizarEstadoGeneral();
+        
         // 5. Cerrar modal
         closeClassJsonModal();
         console.log("[FUNC] handleClassJsonLoad completada.");
@@ -510,7 +613,7 @@ async function generateDocument(event) {
                 console.warn("[WARN] No se pudo parsear el nombre del archivo del header. Usando nombre por defecto.");
             }
         } else {
-            console.warn("[WARN] Header 'Content-Disposition' no encontrado. Usando nombre por defecto.");
+             console.warn("[WARN] Header 'Content-Disposition' no encontrado. Usando nombre por defecto.");
         }
 
         // --- Intentar usar File System Access API primero para la descarga del documento ---
@@ -521,7 +624,7 @@ async function generateDocument(event) {
                     suggestedName: filename,
                     types: [{
                         description: 'Documentos Word',
-                        accept: { 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'] }
+                        accept: {'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx']}
                     }]
                 });
 
@@ -549,11 +652,11 @@ async function generateDocument(event) {
         console.log(`[DL] Blob creado. Tamaño: ${blob.size} bytes.`);
 
         if (blob.size === 0) {
-            const errorMsg = 'Error: El servidor devolvió un archivo vacío.';
-            console.error(errorMsg);
-            updateActionLog(errorMsg);
-            alert(errorMsg);
-            return;
+             const errorMsg = 'Error: El servidor devolvió un archivo vacío.';
+             console.error(errorMsg);
+             updateActionLog(errorMsg);
+             alert(errorMsg);
+             return;
         }
 
         const url = window.URL.createObjectURL(blob);
